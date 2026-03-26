@@ -1,10 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import UserDashboard from './pages/user/UserDashboard';
+import TrainerDashboard from './pages/trainer/TrainerDashboard';
+import OwnerDashboard from './pages/owner/OwnerDashboard';
 
-// Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
   
@@ -24,23 +26,17 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
-  const { user } = useAuth();
-  
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       
-      {/* Role-based dashboards - temporary placeholder pages */}
       <Route 
         path="/user/dashboard" 
         element={
           <ProtectedRoute allowedRoles={['user']}>
-            <div className="min-h-screen bg-black text-white p-8">
-              <h1 className="text-3xl font-bold">User Dashboard</h1>
-              <p>Welcome {user?.name}!</p>
-            </div>
+            <UserDashboard />
           </ProtectedRoute>
         } 
       />
@@ -49,10 +45,7 @@ function App() {
         path="/trainer/dashboard" 
         element={
           <ProtectedRoute allowedRoles={['trainer']}>
-            <div className="min-h-screen bg-black text-white p-8">
-              <h1 className="text-3xl font-bold">Trainer Dashboard</h1>
-              <p>Welcome Trainer {user?.name}!</p>
-            </div>
+            <TrainerDashboard />
           </ProtectedRoute>
         } 
       />
@@ -61,10 +54,7 @@ function App() {
         path="/owner/dashboard" 
         element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <div className="min-h-screen bg-black text-white p-8">
-              <h1 className="text-3xl font-bold">Owner Dashboard</h1>
-              <p>Welcome Owner {user?.name}!</p>
-            </div>
+            <OwnerDashboard />
           </ProtectedRoute>
         } 
       />

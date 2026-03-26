@@ -43,7 +43,7 @@ const Login = () => {
 
       <div className="relative z-10 bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-2xl w-96">
         <h2 className="text-3xl font-bold text-center mb-6 bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Login 🔐
+          Login 
         </h2>
 
         <form onSubmit={handleSubmit}>

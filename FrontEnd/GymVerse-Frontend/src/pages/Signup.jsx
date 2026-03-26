@@ -48,7 +48,7 @@ const Signup = () => {
 
       <div className="relative z-10 bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-2xl w-96">
         <h2 className="text-3xl font-bold text-center mb-6 bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Sign Up 🚀
+          Sign Up 
         </h2>
 
         <form onSubmit={handleSubmit}>
@@ -87,7 +87,7 @@ const Signup = () => {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
             >
-              <option className="bg-gray-900 text-white" value="user">User (Gym Goer)</option>
+              <option className="bg-gray-900 text-white" value="user">User</option>
               <option className="bg-gray-900 text-white" value="trainer">Trainer</option>
               <option className="bg-gray-900 text-white" value="owner">Gym Owner</option>
             </select>
