@@ -14,8 +14,9 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/gyms', require('./routes/gymRoutes'));
 app.use('/api/memberships', require('./routes/membershipRoutes'));
-// app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
+app.use('/api/courses', require('./routes/courseRoutes'));
+app.use('/api/trainers', require('./routes/trainerRoutes'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Gym Verse API Running 🚀' });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   HomeIcon,
@@ -12,11 +12,15 @@ import {
   MapPinIcon,
   CreditCardIcon,
   ChartBarIcon,
+  BookOpenIcon,
+  PlusCircleIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
-const DashboardLayout = ({ children, title, role }) => {
+const DashboardLayout = ({ children, title }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
@@ -26,6 +30,8 @@ const DashboardLayout = ({ children, title, role }) => {
 
   // Navigation items based on role
   const getNavItems = () => {
+    const role = user?.role;
+    
     const commonItems = [
       { name: 'Dashboard', icon: HomeIcon, path: `/${role}/dashboard` },
       { name: 'Chat', icon: ChatBubbleLeftRightIcon, path: `/${role}/chat` },
@@ -38,22 +44,26 @@ const DashboardLayout = ({ children, title, role }) => {
         { name: 'My Memberships', icon: CreditCardIcon, path: '/user/memberships' },
         { name: 'Courses', icon: VideoCameraIcon, path: '/user/courses' },
         { name: 'Trainers', icon: UserGroupIcon, path: '/user/trainers' },
+        { name: 'Blogs', icon: DocumentTextIcon, path: '/user/blogs' },
       ],
       trainer: [
         { name: 'My Courses', icon: VideoCameraIcon, path: '/trainer/courses' },
+        { name: 'Create Course', icon: PlusCircleIcon, path: '/trainer/create-course' },
         { name: 'My Blogs', icon: DocumentTextIcon, path: '/trainer/blogs' },
+        { name: 'Create Blog', icon: PlusCircleIcon, path: '/trainer/create-blog' },
         { name: 'Earnings', icon: ChartBarIcon, path: '/trainer/earnings' },
         { name: 'Followers', icon: UserGroupIcon, path: '/trainer/followers' },
       ],
       owner: [
-        { name: 'Manage Gyms', icon: MapPinIcon, path: '/owner/gyms' },
+        { name: 'Manage Gyms', icon: BuildingOfficeIcon, path: '/owner/gyms' },
+        { name: 'Create Gym', icon: PlusCircleIcon, path: '/owner/create-gym' },
         { name: 'Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
         { name: 'Memberships', icon: CreditCardIcon, path: '/owner/memberships' },
         { name: 'Revenue', icon: ChartBarIcon, path: '/owner/revenue' },
       ],
     };
 
-    return [...roleSpecificItems[role], ...commonItems];
+    return [...(roleSpecificItems[role] || []), ...commonItems];
   };
 
   const navItems = getNavItems();
@@ -80,21 +90,29 @@ const DashboardLayout = ({ children, title, role }) => {
             <h1 className="text-2xl font-bold bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               GymVerse
             </h1>
-            <p className="text-sm text-gray-400 mt-1 capitalize">{role} Dashboard</p>
+            <p className="text-sm text-gray-400 mt-1 capitalize">{user?.role} Dashboard</p>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition group"
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            ))}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
+                    isActive
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User Info & Logout */}
