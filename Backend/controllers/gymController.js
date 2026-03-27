@@ -1,7 +1,6 @@
 const Gym = require('../models/Gym');
 
 // @desc    Create a new gym
-// @route   POST /api/gyms
 const createGym = async (req, res) => {
   try {
     const gym = await Gym.create({
@@ -14,8 +13,7 @@ const createGym = async (req, res) => {
   }
 };
 
-// @desc    Get all gyms
-// @route   GET /api/gyms
+// @desc    Get all gyms (public)
 const getGyms = async (req, res) => {
   try {
     const gyms = await Gym.find({ isActive: true }).populate('ownerId', 'name email');
@@ -25,32 +23,7 @@ const getGyms = async (req, res) => {
   }
 };
 
-// @desc    Get nearby gyms
-// @route   GET /api/gyms/nearby
-const getNearbyGyms = async (req, res) => {
-  try {
-    const { lng, lat, maxDistance = 5000 } = req.query; // maxDistance in meters
-    
-    const gyms = await Gym.find({
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)],
-          },
-          $maxDistance: parseInt(maxDistance),
-        },
-      },
-    });
-    
-    res.json({ success: true, data: gyms });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // @desc    Get gym by ID
-// @route   GET /api/gyms/:id
 const getGymById = async (req, res) => {
   try {
     const gym = await Gym.findById(req.params.id).populate('ownerId', 'name email');
@@ -63,28 +36,56 @@ const getGymById = async (req, res) => {
   }
 };
 
+// @desc    Get nearby gyms
+const getNearbyGyms = async (req, res) => {
+  try {
+    const { lng, lat, maxDistance = 10000 } = req.query;
+    
+    if (!lng || !lat) {
+      return res.status(400).json({ success: false, message: 'Longitude and latitude are required' });
+    }
+    
+    const gyms = await Gym.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          $maxDistance: parseInt(maxDistance),
+        },
+      },
+      isActive: true,
+    });
+    
+    res.json({ success: true, data: gyms });
+  } catch (error) {
+    console.error('getNearbyGyms error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Update gym
-// @route   PUT /api/gyms/:id
 const updateGym = async (req, res) => {
   try {
-    const gym = await Gym.findById(req.params.id);
+    let gym = await Gym.findById(req.params.id);
     if (!gym) {
       return res.status(404).json({ success: false, message: 'Gym not found' });
     }
     
+    // Check if user is the owner of this gym
     if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+      return res.status(403).json({ success: false, message: 'Not authorized to update this gym' });
     }
     
-    const updatedGym = await Gym.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json({ success: true, data: updatedGym });
+    gym = await Gym.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    res.json({ success: true, data: gym });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // @desc    Delete gym
-// @route   DELETE /api/gyms/:id
 const deleteGym = async (req, res) => {
   try {
     const gym = await Gym.findById(req.params.id);
@@ -92,12 +93,13 @@ const deleteGym = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Gym not found' });
     }
     
+    // Check if user is the owner of this gym
     if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this gym' });
     }
     
     await gym.deleteOne();
-    res.json({ success: true, message: 'Gym deleted' });
+    res.json({ success: true, message: 'Gym deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

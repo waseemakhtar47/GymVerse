@@ -8,9 +8,8 @@ import {
   BuildingOfficeIcon, 
   UserGroupIcon, 
   CreditCardIcon, 
-  ChartBarIcon,
-  PlusCircleIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  PlusCircleIcon
 } from '@heroicons/react/24/outline';
 
 const OwnerDashboard = () => {
@@ -37,22 +36,11 @@ const OwnerDashboard = () => {
       const allGyms = gymsRes.data.data || [];
       setGyms(allGyms.slice(0, 3));
       
-      // Count total members from all gyms
-      let totalMembers = 0;
-      for (const gym of allGyms) {
-        try {
-          const membershipsRes = await membershipService.getGymMemberships(gym._id);
-          totalMembers += membershipsRes.data.data?.length || 0;
-        } catch (error) {
-          console.error(`Failed to fetch memberships for gym ${gym._id}:`, error);
-        }
-      }
-      
       setStats({
         totalGyms: allGyms.length,
-        totalMembers: totalMembers,
-        totalTrainers: 0, // TODO: Add trainers endpoint
-        monthlyRevenue: 0 // TODO: Add revenue calculation
+        totalMembers: 0,
+        totalTrainers: 0,
+        monthlyRevenue: 0
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -111,11 +99,11 @@ const OwnerDashboard = () => {
                 <PlusCircleIcon className="w-5 h-5" />
               </button>
               <button
-                onClick={() => navigate('/owner/trainers')}
+                onClick={() => navigate('/owner/gyms')}
                 className="w-full flex items-center justify-between p-3 bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition"
               >
-                <span>Manage Trainers</span>
-                <UserGroupIcon className="w-5 h-5" />
+                <span>Manage Gyms</span>
+                <BuildingOfficeIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -133,7 +121,10 @@ const OwnerDashboard = () => {
                       <p className="text-white font-medium">{gym.name}</p>
                       <p className="text-sm text-gray-400">{gym.address?.substring(0, 50)}</p>
                     </div>
-                    <button className="px-3 py-1 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700">
+                    <button
+                      onClick={() => navigate(`/owner/edit-gym/${gym._id}`)}
+                      className="px-3 py-1 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                    >
                       Manage
                     </button>
                   </div>

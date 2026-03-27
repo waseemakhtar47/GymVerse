@@ -41,7 +41,10 @@ const membershipSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ['pending', 'completed', 'failed'],
-      default: 'pending',
+      default: 'completed',
+    },
+    lastVerified: {
+      type: Date,
     },
   },
   {

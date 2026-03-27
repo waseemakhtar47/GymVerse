@@ -58,7 +58,6 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'Manage Gyms', icon: BuildingOfficeIcon, path: '/owner/gyms' },
         { name: 'Create Gym', icon: PlusCircleIcon, path: '/owner/create-gym' },
         { name: 'Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
-        { name: 'Memberships', icon: CreditCardIcon, path: '/owner/memberships' },
         { name: 'Revenue', icon: ChartBarIcon, path: '/owner/revenue' },
       ],
     };
