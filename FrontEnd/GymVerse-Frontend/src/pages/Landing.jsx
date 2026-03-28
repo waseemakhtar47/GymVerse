@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { BicepsFlexed } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -48,8 +49,8 @@ const Landing = () => {
 
       {/* Hero */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-20">
-        <h1 className="text-6xl font-extrabold mb-6 bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent fadeUp">
-          GymVerse 💪
+        <h1 className="text-6xl font-extrabold mb-6 bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent fadeUp flex">
+          <BicepsFlexed size={40} color="#18378c" strokeWidth={2} /> GymVerse 
         </h1>
 
         <p className="text-gray-300 mb-10 fadeUp delay1">

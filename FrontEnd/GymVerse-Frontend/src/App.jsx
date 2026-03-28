@@ -17,6 +17,8 @@ import ManageGyms from "./pages/owner/ManageGyms";
 import CreateGym from "./pages/owner/CreateGym";
 import EditGym from "./pages/owner/EditGym";
 import GymMemberships from "./pages/owner/GymMemberships";
+import Trainers from "./pages/user/Trainers";
+import Followers from "./pages/trainer/Followers";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -47,8 +49,15 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
-
       {/* User Routes */}
+      <Route
+        path="/user/trainers"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <Trainers />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/user/dashboard"
         element={
@@ -89,7 +98,6 @@ function App() {
           </ProtectedRoute>
         }
       />
-
       {/* Trainer Routes */}
       <Route
         path="/trainer/dashboard"
@@ -131,7 +139,14 @@ function App() {
           </ProtectedRoute>
         }
       />
-
+      <Route
+        path="/trainer/followers"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <Followers />
+          </ProtectedRoute>
+        }
+      />
       {/* Owner Routes */}
       <Route
         path="/owner/dashboard"

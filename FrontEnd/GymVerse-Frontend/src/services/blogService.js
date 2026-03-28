@@ -30,4 +30,6 @@ export const blogService = {
   
   // Get blogs by author
   getBlogsByAuthor: (authorId) => api.get(`/blogs/author/${authorId}`),
+
+  getFollowingBlogs: () => api.get('/blogs/following'),
 };

@@ -5,7 +5,8 @@ const Blog = require('../models/Blog');
 // @desc    Get all trainers
 const getAllTrainers = async (req, res) => {
   try {
-    const trainers = await User.find({ role: 'trainer', isActive: true })
+    // Remove isActive filter temporarily
+    const trainers = await User.find({ role: 'trainer' })
       .select('-password')
       .sort('-createdAt');
     
@@ -14,7 +15,16 @@ const getAllTrainers = async (req, res) => {
       const courses = await Course.countDocuments({ trainerId: trainer._id });
       const blogs = await Blog.countDocuments({ authorId: trainer._id });
       const followersCount = trainer.followers?.length || 0;
-      return { ...trainer.toObject(), courses, blogs, followers: followersCount };
+      
+      return { 
+        ...trainer.toObject(), 
+        courses, 
+        blogs, 
+        followers: followersCount,
+        bio: trainer.bio || 'Expert fitness trainer passionate about helping you achieve your goals.',
+        specialty: trainer.specialty || 'Strength & Conditioning',
+        experience: trainer.experience || '5+ years',
+      };
     }));
     
     res.json({ success: true, data: trainersWithStats });
@@ -23,7 +33,6 @@ const getAllTrainers = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // @desc    Get trainer by ID
 const getTrainerById = async (req, res) => {
   try {
@@ -54,20 +63,23 @@ const followTrainer = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Trainer not found' });
     }
     
-    // Initialize followers array if it doesn't exist
-    if (!trainer.followers) {
-      trainer.followers = [];
-    }
+    const user = await User.findById(req.user.id);
+    
+    if (!trainer.followers) trainer.followers = [];
+    if (!user.following) user.following = [];
     
     const alreadyFollowing = trainer.followers.includes(req.user.id);
     
     if (alreadyFollowing) {
       trainer.followers = trainer.followers.filter(f => f.toString() !== req.user.id);
+      user.following = user.following.filter(f => f.toString() !== req.params.id);
     } else {
       trainer.followers.push(req.user.id);
+      user.following.push(req.params.id);
     }
     
     await trainer.save();
+    await user.save();
     
     res.json({
       success: true,
@@ -154,6 +166,36 @@ const getTrainerStats = async (req, res) => {
   }
 };
 
+// @desc    Get trainer's courses
+const getTrainerCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({ 
+      trainerId: req.params.id, 
+      isActive: true 
+    }).select('title price enrolledUsers createdAt thumbnail');
+    
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    console.error('getTrainerCourses error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get trainer's blogs
+const getTrainerBlogs = async (req, res) => {
+  try {
+    const blogs = await Blog.find({ 
+      authorId: req.params.id, 
+      isPublished: true 
+    }).select('title views createdAt excerpt');
+    
+    res.json({ success: true, data: blogs });
+  } catch (error) {
+    console.error('getTrainerBlogs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllTrainers,
   getTrainerById,
@@ -161,4 +203,6 @@ module.exports = {
   getFollowingTrainers,
   getMyFollowers,
   getTrainerStats,
+  getTrainerCourses,
+  getTrainerBlogs,
 };

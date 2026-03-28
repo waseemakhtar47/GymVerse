@@ -8,7 +8,7 @@ const gymSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: true,
+      default: '',
     },
     address: {
       type: String,
@@ -21,8 +21,9 @@ const gymSchema = new mongoose.Schema(
         default: 'Point',
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
+        type: [Number],
         required: true,
+        default: [77.281845, 28.561123], // Ganjdundwara coordinates as default
       },
     },
     ownerId: {
@@ -31,12 +32,12 @@ const gymSchema = new mongoose.Schema(
       required: true,
     },
     timings: {
-      open: String,
-      close: String,
+      open: { type: String, default: '06:00' },
+      close: { type: String, default: '22:00' },
     },
     images: [String],
     facilities: [String],
-    contactNumber: String,
+    contactNumber: { type: String, default: '' },
     isActive: {
       type: Boolean,
       default: true,

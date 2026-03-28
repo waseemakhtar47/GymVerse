@@ -3,15 +3,12 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { membershipService } from '../../services/membershipService';
 import { blogService } from '../../services/blogService';
-import { gymService } from '../../services/gymService';
 import { courseService } from '../../services/courseService';
 import { trainerService } from '../../services/trainerService';
 import { 
   CalendarIcon, 
   VideoCameraIcon, 
-  ChatBubbleLeftRightIcon,
   ArrowTrendingUpIcon,
-  MapPinIcon,
   BookOpenIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
@@ -25,7 +22,6 @@ const UserDashboard = () => {
     fitnessStreak: 0
   });
   const [recentBlogs, setRecentBlogs] = useState([]);
-  const [nearbyGyms, setNearbyGyms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,29 +31,17 @@ const UserDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch memberships
       const membershipsRes = await membershipService.getMyMemberships();
       const activeMemberships = membershipsRes.data.data?.filter(m => m.status === 'active').length || 0;
       
-      // Fetch enrolled courses
       const coursesRes = await courseService.getMyEnrolledCourses();
       const enrolledCourses = coursesRes.data.data?.length || 0;
       
-      // Fetch following trainers
       const trainersRes = await trainerService.getFollowingTrainers();
       const followingTrainers = trainersRes.data.data?.length || 0;
       
-      // Fetch blogs
       const blogsRes = await blogService.getAllBlogs({ limit: 3 });
       setRecentBlogs(blogsRes.data.data || []);
-      
-      // Fetch nearby gyms
-      try {
-        const gymsRes = await gymService.getNearbyGyms(77.5946, 12.9716, 5000);
-        setNearbyGyms(gymsRes.data.data || []);
-      } catch (error) {
-        console.error('Failed to fetch gyms:', error);
-      }
       
       setStats({
         activeMemberships,
@@ -82,13 +66,18 @@ const UserDashboard = () => {
   if (loading) {
     return (
       <DashboardLayout title="Welcome Back!" role="user">
-        <div className="text-center text-gray-400 py-10">Loading dashboard...</div>
+        <div className="flex items-center justify-center min-h-100">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading dashboard...</p>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title={`Welcome Back, ${user?.name?.split(' ')[0]}! 💪`} role="user">
+    <DashboardLayout title={`Welcome Back, ${user?.name?.split(' ')[0]}! `} role="user">
       <div className="overflow-y-auto max-h-[calc(100vh-120px)]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style>{`
           .overflow-y-auto::-webkit-scrollbar {
@@ -119,52 +108,33 @@ const UserDashboard = () => {
           ))}
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Nearby Gyms */}
-          <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white">Nearby Gyms</h3>
-              <MapPinIcon className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="space-y-3 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-              {nearbyGyms.length === 0 ? (
-                <p className="text-gray-400 text-center py-4">No gyms found nearby</p>
-              ) : (
-                nearbyGyms.slice(0, 5).map((gym) => (
-                  <div key={gym._id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                    <div>
-                      <p className="text-white font-medium">{gym.name}</p>
-                      <p className="text-sm text-gray-400">{gym.address?.substring(0, 50)}</p>
-                    </div>
-                    <button className="px-3 py-1 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700">
-                      View
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+        {/* Latest Blogs Section - Full Width */}
+        <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">Latest Blogs</h3>
+            <BookOpenIcon className="w-5 h-5 text-purple-400" />
           </div>
-
-          {/* Recent Blogs */}
-          <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white">Latest Blogs</h3>
-              <BookOpenIcon className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="space-y-3 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-              {recentBlogs.length === 0 ? (
-                <p className="text-gray-400 text-center py-4">No blogs available</p>
-              ) : (
-                recentBlogs.map((blog) => (
-                  <div key={blog._id} className="p-3 bg-white/5 rounded-lg">
-                    <p className="text-white font-medium">{blog.title}</p>
-                    <p className="text-sm text-gray-400">By {blog.authorId?.name} • {new Date(blog.createdAt).toLocaleDateString()}</p>
-                  </div>
-                ))
-              )}
-            </div>
+          <div className="space-y-3 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+            {recentBlogs.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">No blogs available</p>
+            ) : (
+              recentBlogs.map((blog) => (
+                <div key={blog._id} className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition cursor-pointer">
+                  <p className="text-white font-medium">{blog.title}</p>
+                  <p className="text-sm text-gray-400">By {blog.authorId?.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">{new Date(blog.createdAt).toLocaleDateString()}</p>
+                </div>
+              ))
+            )}
           </div>
+          {recentBlogs.length > 0 && (
+            <button
+              onClick={() => window.location.href = '/user/blogs'}
+              className="mt-4 w-full py-2 border border-purple-500 rounded-lg text-purple-400 text-sm hover:bg-purple-500/10 transition"
+            >
+              View All Blogs
+            </button>
+          )}
         </div>
       </div>
     </DashboardLayout>

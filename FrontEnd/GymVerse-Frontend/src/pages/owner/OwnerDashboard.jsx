@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { gymService } from '../../services/gymService';
-import { membershipService } from '../../services/membershipService';
 import { 
   BuildingOfficeIcon, 
   UserGroupIcon, 
-  CreditCardIcon, 
   CurrencyDollarIcon,
-  PlusCircleIcon
+  PlusCircleIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -23,6 +26,7 @@ const OwnerDashboard = () => {
   });
   const [gyms, setGyms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -31,7 +35,6 @@ const OwnerDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch all gyms
       const gymsRes = await gymService.getAllGyms();
       const allGyms = gymsRes.data.data || [];
       setGyms(allGyms.slice(0, 3));
@@ -44,8 +47,21 @@ const OwnerDashboard = () => {
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load gyms');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteGym = async (gymId, gymName) => {
+    if (!confirm(`Are you sure you want to delete "${gymName}"? This will also delete all memberships and data associated with this gym.`)) return;
+    
+    try {
+      await gymService.deleteGym(gymId);
+      toast.success('Gym deleted successfully');
+      fetchDashboardData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete gym');
     }
   };
 
@@ -59,7 +75,12 @@ const OwnerDashboard = () => {
   if (loading) {
     return (
       <DashboardLayout title="Welcome Back!" role="owner">
-        <div className="text-center text-gray-400 py-10">Loading dashboard...</div>
+        <div className="flex items-center justify-center min-h-100">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading dashboard...</p>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -102,13 +123,13 @@ const OwnerDashboard = () => {
                 onClick={() => navigate('/owner/gyms')}
                 className="w-full flex items-center justify-between p-3 bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition"
               >
-                <span>Manage Gyms</span>
+                <span>Manage All Gyms</span>
                 <BuildingOfficeIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Gym Overview */}
+          {/* Your Gyms Card with Actions */}
           <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
             <h3 className="text-xl font-semibold text-white mb-4">Your Gyms</h3>
             <div className="space-y-3 max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
@@ -116,21 +137,74 @@ const OwnerDashboard = () => {
                 <p className="text-gray-400 text-center py-4">No gyms yet. Create your first gym!</p>
               ) : (
                 gyms.map((gym) => (
-                  <div key={gym._id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                    <div>
-                      <p className="text-white font-medium">{gym.name}</p>
-                      <p className="text-sm text-gray-400">{gym.address?.substring(0, 50)}</p>
+                  <div key={gym._id} className="relative">
+                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition">
+                      <div className="flex-1 cursor-pointer" onClick={() => navigate(`/owner/memberships/${gym._id}`)}>
+                        <p className="text-white font-medium">{gym.name}</p>
+                        <p className="text-sm text-gray-400 truncate">{gym.address?.substring(0, 50)}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          🕒 {gym.timings?.open || '06:00'} - {gym.timings?.close || '22:00'}
+                        </p>
+                      </div>
+                      
+                      {/* Dropdown Menu Button */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === gym._id ? null : gym._id)}
+                          className="p-2 hover:bg-white/10 rounded-lg transition"
+                        >
+                          <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                        </button>
+                        
+                        {/* Dropdown Menu */}
+                        {openMenuId === gym._id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-white/10 rounded-lg shadow-xl z-10 overflow-hidden">
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                navigate(`/owner/memberships/${gym._id}`);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                              <span>View Members</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                navigate(`/owner/edit-gym/${gym._id}`);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                              <span>Edit Gym</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleDeleteGym(gym._id, gym.name);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-red-400 hover:bg-red-500/10 transition"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                              <span>Delete Gym</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => navigate(`/owner/edit-gym/${gym._id}`)}
-                      className="px-3 py-1 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
-                    >
-                      Manage
-                    </button>
                   </div>
                 ))
               )}
             </div>
+            {gyms.length > 0 && (
+              <button
+                onClick={() => navigate('/owner/gyms')}
+                className="mt-4 w-full py-2 border border-purple-500 rounded-lg text-purple-400 text-sm hover:bg-purple-500/10 transition"
+              >
+                View All Gyms
+              </button>
+            )}
           </div>
         </div>
       </div>

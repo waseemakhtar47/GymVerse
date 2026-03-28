@@ -13,9 +13,15 @@ export const trainerService = {
   // Get following trainers (user)
   getFollowingTrainers: () => api.get('/trainers/following'),
   
-  // Get followers (trainer)
+  // Get my followers (trainer)
   getMyFollowers: () => api.get('/trainers/my/followers'),
   
   // Get trainer stats
   getTrainerStats: () => api.get('/trainers/my/stats'),
+  
+  // Get trainer's courses
+  getTrainerCourses: (id) => api.get(`/trainers/${id}/courses`),
+  
+  // Get trainer's blogs
+  getTrainerBlogs: (id) => api.get(`/trainers/${id}/blogs`),
 };

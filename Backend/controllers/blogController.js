@@ -2,11 +2,8 @@ const Blog = require('../models/Blog');
 const User = require('../models/User');
 
 // @desc    Create a new blog
-// @route   POST /api/blogs
-// @access  Private (Trainer only)
 const createBlog = async (req, res) => {
   try {
-    // Only trainers can create blogs
     if (req.user.role !== 'trainer' && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -17,11 +14,11 @@ const createBlog = async (req, res) => {
     const { title, content, excerpt, category, tags, featuredImage } = req.body;
 
     const blog = await Blog.create({
-      authorId: req.user.id,
+      authorId: req.user._id,
       title,
       content,
-      excerpt: excerpt || content.substring(0, 200),
-      category,
+      excerpt: excerpt || content?.substring(0, 200) || '',
+      category: category || 'general',
       tags: tags || [],
       featuredImage: featuredImage || '',
     });
@@ -31,6 +28,7 @@ const createBlog = async (req, res) => {
       data: blog,
     });
   } catch (error) {
+    console.error('createBlog error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -39,29 +37,23 @@ const createBlog = async (req, res) => {
 };
 
 // @desc    Get all blogs (public)
-// @route   GET /api/blogs
-// @access  Public
 const getBlogs = async (req, res) => {
   try {
-    const { category, tag, page = 1, limit = 10, search } = req.query;
+    const { category, page = 1, limit = 10 } = req.query;
     
     let query = { isPublished: true };
     
-    if (category) {
+    if (category && category !== 'all') {
       query.category = category;
-    }
-    
-    if (tag) {
-      query.tags = tag;
-    }
-    
-    if (search) {
-      query.$text = { $search: search };
     }
     
     const blogs = await Blog.find(query)
       .populate('authorId', 'name profilePic role')
-      .sort('-createdAt')
+      .populate({
+        path: 'comments.userId',
+        select: 'name profilePic'
+      })
+      .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
@@ -78,6 +70,7 @@ const getBlogs = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('getBlogs error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -86,12 +79,14 @@ const getBlogs = async (req, res) => {
 };
 
 // @desc    Get single blog
-// @route   GET /api/blogs/:id
-// @access  Public
 const getBlogById = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id)
-      .populate('authorId', 'name profilePic role');
+      .populate('authorId', 'name profilePic role')
+      .populate({
+        path: 'comments.userId',
+        select: 'name profilePic'
+      });
     
     if (!blog) {
       return res.status(404).json({
@@ -100,7 +95,6 @@ const getBlogById = async (req, res) => {
       });
     }
     
-    // Increment views
     blog.views += 1;
     await blog.save();
     
@@ -109,6 +103,7 @@ const getBlogById = async (req, res) => {
       data: blog,
     });
   } catch (error) {
+    console.error('getBlogById error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -117,8 +112,6 @@ const getBlogById = async (req, res) => {
 };
 
 // @desc    Update blog
-// @route   PUT /api/blogs/:id
-// @access  Private (Author only)
 const updateBlog = async (req, res) => {
   try {
     let blog = await Blog.findById(req.params.id);
@@ -130,8 +123,7 @@ const updateBlog = async (req, res) => {
       });
     }
     
-    // Check if user is the author
-    if (blog.authorId.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (blog.authorId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this blog',
@@ -149,6 +141,7 @@ const updateBlog = async (req, res) => {
       data: blog,
     });
   } catch (error) {
+    console.error('updateBlog error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -157,8 +150,6 @@ const updateBlog = async (req, res) => {
 };
 
 // @desc    Delete blog
-// @route   DELETE /api/blogs/:id
-// @access  Private (Author only)
 const deleteBlog = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
@@ -170,7 +161,7 @@ const deleteBlog = async (req, res) => {
       });
     }
     
-    if (blog.authorId.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (blog.authorId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this blog',
@@ -184,6 +175,7 @@ const deleteBlog = async (req, res) => {
       message: 'Blog deleted successfully',
     });
   } catch (error) {
+    console.error('deleteBlog error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -192,8 +184,6 @@ const deleteBlog = async (req, res) => {
 };
 
 // @desc    Like/Unlike a blog
-// @route   POST /api/blogs/:id/like
-// @access  Private
 const likeBlog = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
@@ -205,18 +195,16 @@ const likeBlog = async (req, res) => {
       });
     }
     
-    const alreadyLiked = blog.likes.find(
-      like => like.userId.toString() === req.user.id
+    const alreadyLiked = blog.likes?.some(
+      like => like.userId.toString() === req.user._id.toString()
     );
     
     if (alreadyLiked) {
-      // Unlike
       blog.likes = blog.likes.filter(
-        like => like.userId.toString() !== req.user.id
+        like => like.userId.toString() !== req.user._id.toString()
       );
     } else {
-      // Like
-      blog.likes.push({ userId: req.user.id });
+      blog.likes.push({ userId: req.user._id });
     }
     
     await blog.save();
@@ -229,6 +217,7 @@ const likeBlog = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('likeBlog error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -237,8 +226,6 @@ const likeBlog = async (req, res) => {
 };
 
 // @desc    Add comment to blog
-// @route   POST /api/blogs/:id/comments
-// @access  Private
 const addComment = async (req, res) => {
   try {
     const { comment } = req.body;
@@ -260,23 +247,29 @@ const addComment = async (req, res) => {
     }
     
     blog.comments.push({
-      userId: req.user.id,
+      userId: req.user._id,
       comment,
     });
     
     await blog.save();
     
-    // Populate user info for the new comment
-    const populatedBlog = await Blog.findById(req.params.id)
-      .populate('comments.userId', 'name profilePic');
-    
-    const newComment = populatedBlog.comments[populatedBlog.comments.length - 1];
+    const newComment = blog.comments[blog.comments.length - 1];
     
     res.status(201).json({
       success: true,
-      data: newComment,
+      data: {
+        _id: newComment._id,
+        comment: newComment.comment,
+        userId: {
+          _id: req.user._id,
+          name: req.user.name,
+          profilePic: req.user.profilePic || '',
+        },
+        createdAt: newComment.createdAt,
+      },
     });
   } catch (error) {
+    console.error('addComment error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -285,8 +278,6 @@ const addComment = async (req, res) => {
 };
 
 // @desc    Delete comment
-// @route   DELETE /api/blogs/:blogId/comments/:commentId
-// @access  Private
 const deleteComment = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.blogId);
@@ -307,12 +298,9 @@ const deleteComment = async (req, res) => {
       });
     }
     
-    // Check if user is comment author or blog author or admin
-    if (
-      comment.userId.toString() !== req.user.id &&
-      blog.authorId.toString() !== req.user.id &&
-      req.user.role !== 'admin'
-    ) {
+    if (comment.userId.toString() !== req.user._id.toString() &&
+        blog.authorId.toString() !== req.user._id.toString() &&
+        req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this comment',
@@ -327,6 +315,7 @@ const deleteComment = async (req, res) => {
       message: 'Comment deleted successfully',
     });
   } catch (error) {
+    console.error('deleteComment error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -334,9 +323,7 @@ const deleteComment = async (req, res) => {
   }
 };
 
-// @desc    Get blogs by author (trainer)
-// @route   GET /api/blogs/author/:authorId
-// @access  Public
+// @desc    Get blogs by author
 const getBlogsByAuthor = async (req, res) => {
   try {
     const blogs = await Blog.find({
@@ -344,13 +331,18 @@ const getBlogsByAuthor = async (req, res) => {
       isPublished: true,
     })
       .populate('authorId', 'name profilePic')
-      .sort('-createdAt');
+      .populate({
+        path: 'comments.userId',
+        select: 'name profilePic'
+      })
+      .sort({ createdAt: -1 });
     
     res.json({
       success: true,
       data: blogs,
     });
   } catch (error) {
+    console.error('getBlogsByAuthor error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -358,19 +350,76 @@ const getBlogsByAuthor = async (req, res) => {
   }
 };
 
-// @desc    Get trainer's own blogs (for dashboard)
-// @route   GET /api/blogs/my-blogs
-// @access  Private (Trainer only)
+// @desc    Get trainer's own blogs
 const getMyBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find({ authorId: req.user.id })
-      .sort('-createdAt');
+    
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+    }
+    
+    const blogs = await Blog.find({ authorId: req.user._id })
+      .populate('authorId', 'name profilePic role')
+      .populate({
+        path: 'comments.userId',
+        select: 'name profilePic'
+      })
+      .sort({ createdAt: -1 });
+    
     
     res.json({
       success: true,
       data: blogs,
     });
   } catch (error) {
+    console.error('❌ getMyBlogs error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get blogs from trainers the user follows
+const getFollowingBlogs = async (req, res) => {
+  try {
+ 
+    
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+    }
+    
+    const user = await User.findById(req.user._id).select('following');
+    
+    if (!user || !user.following || user.following.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    
+    const blogs = await Blog.find({
+      authorId: { $in: user.following },
+      isPublished: true,
+    })
+      .populate('authorId', 'name profilePic role')
+      .populate({
+        path: 'comments.userId',
+        select: 'name profilePic'
+      })
+      .sort({ createdAt: -1 });
+    
+    
+    res.json({
+      success: true,
+      data: blogs,
+    });
+  } catch (error) {
+    console.error('❌ getFollowingBlogs error:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -389,4 +438,5 @@ module.exports = {
   deleteComment,
   getBlogsByAuthor,
   getMyBlogs,
+  getFollowingBlogs,
 };

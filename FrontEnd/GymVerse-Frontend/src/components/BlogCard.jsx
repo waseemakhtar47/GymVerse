@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 const BlogCard = ({ blog, onRefresh }) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(blog.likes?.some(l => l.userId === user?._id));
-  const [likeCount, setLikeCount] = useState(blog.likeCount || 0);
+  const [likeCount, setLikeCount] = useState(blog.likeCount || blog.likes?.length || 0);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
+  const [comments, setComments] = useState(blog.comments || []);
 
   const handleLike = async () => {
     try {
@@ -26,9 +27,10 @@ const BlogCard = ({ blog, onRefresh }) => {
     e.preventDefault();
     if (!comment.trim()) return;
     try {
-      await blogService.addComment(blog._id, comment);
+      const res = await blogService.addComment(blog._id, comment);
+      setComments([...comments, res.data.data]);
       setComment('');
-      onRefresh();
+      if (onRefresh) onRefresh();
       toast.success('Comment added');
     } catch (error) {
       toast.error('Failed to add comment');
@@ -47,7 +49,7 @@ const BlogCard = ({ blog, onRefresh }) => {
           </span>
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <ChatBubbleLeftIcon className="w-4 h-4" />
-            <span>{blog.commentCount || blog.comments?.length || 0}</span>
+            <span>{comments.length}</span>
           </div>
         </div>
         
@@ -76,41 +78,55 @@ const BlogCard = ({ blog, onRefresh }) => {
         </div>
         
         {/* Comments Section */}
-        {showComments && (
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="space-y-3 max-h-40 overflow-y-auto mb-3">
-              {blog.comments?.map((c, idx) => (
-                <div key={idx} className="bg-white/5 rounded-lg p-2">
-                  <p className="text-white text-sm">
-                    <span className="font-semibold">{c.userId?.name}:</span> {c.comment}
-                  </p>
-                  <p className="text-gray-500 text-xs">{new Date(c.createdAt).toLocaleDateString()}</p>
-                </div>
-              ))}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className="text-sm text-purple-400 hover:text-purple-300"
+          >
+            {showComments ? 'Hide comments' : `View comments (${comments.length})`}
+          </button>
+          
+          {showComments && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="space-y-3 max-h-40 overflow-y-auto mb-3">
+                {comments.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center">No comments yet. Be the first!</p>
+                ) : (
+                  comments.map((c, idx) => (
+                    <div key={idx} className="bg-white/5 rounded-lg p-2">
+                      <p className="text-white text-sm">
+                        <span className="font-semibold">
+                          {c.userId?.name || 'Anonymous'}:
+                        </span> {c.comment}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {new Date(c.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {user && (
+                <form onSubmit={handleComment} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write a comment..."
+                    className="flex-1 px-3 py-2 bg-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <button 
+                    type="submit" 
+                    className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                  >
+                    Post
+                  </button>
+                </form>
+              )}
             </div>
-            {user && (
-              <form onSubmit={handleComment} className="flex gap-2">
-                <input
-                  type="text"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Write a comment..."
-                  className="flex-1 px-3 py-2 bg-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <button type="submit" className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm">
-                  Post
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-        
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="mt-3 text-sm text-purple-400 hover:text-purple-300"
-        >
-          {showComments ? 'Hide comments' : `View comments (${blog.comments?.length || 0})`}
-        </button>
+          )}
+        </div>
       </div>
     </div>
   );
