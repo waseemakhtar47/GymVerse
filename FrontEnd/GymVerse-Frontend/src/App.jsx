@@ -24,7 +24,10 @@ import MyApplications from "./pages/trainer/MyApplications";
 import GymApplications from "./pages/owner/GymApplications";
 import GymTrainers from "./pages/owner/GymTrainers";
 import OwnerTrainers from "./pages/owner/OwnerTrainers";
-import Settings from './pages/Settings';
+import Settings from "./pages/Settings";
+import TrainerProfile from "./pages/TrainerProfile";
+import MyRequests from "./pages/trainer/MyRequests";
+import GymSentRequests from "./pages/owner/GymSentRequests";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -55,6 +58,7 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
 
       {/* User Routes */}
       <Route
@@ -65,7 +69,14 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/user/settings" element={<ProtectedRoute allowedRoles={['user']}><Settings /></ProtectedRoute>} />
+      <Route
+        path="/user/settings"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/user/blogs"
         element={
@@ -116,7 +127,22 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/trainer/settings" element={<ProtectedRoute allowedRoles={['trainer']}><Settings /></ProtectedRoute>} />
+      <Route
+        path="/trainer/my-requests"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <MyRequests />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trainer/settings"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/trainer/blogs"
         element={
@@ -183,7 +209,22 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/owner/settings" element={<ProtectedRoute allowedRoles={['owner']}><Settings /></ProtectedRoute>} />
+      <Route
+        path="/owner/gym-sent-requests/:gymId"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <GymSentRequests />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/settings"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/owner/gyms"
         element={

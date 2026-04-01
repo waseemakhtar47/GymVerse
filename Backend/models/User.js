@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
@@ -22,61 +22,66 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'trainer', 'owner'],
-      default: 'user',
+      enum: ["user", "trainer", "owner"],
+      default: "user",
     },
     profilePic: {
       type: String,
-      default: '',
+      default: "",
     },
     phone: {
       type: String,
-      default: '',
+      default: "",
     },
     address: {
       type: String,
-      default: '',
+      default: "",
     },
     bio: {
       type: String,
-      default: '',
+      default: "",
     },
     specialty: {
       type: String,
-      default: '',
+      default: "",
     },
     experience: {
       type: String,
-      default: '',
+      default: "",
     },
     businessName: {
       type: String,
-      default: '',
+      default: "",
     },
     gstNumber: {
       type: String,
-      default: '',
+      default: "",
     },
     isActive: {
       type: Boolean,
       default: true,
     },
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    appliedGyms: [
-      {
-        gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym' },
-        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-        appliedAt: { type: Date, default: Date.now },
-      }
-    ],
-    associatedGym: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', default: null },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+appliedGyms: [
+  {
+    gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    appliedAt: { type: Date, default: Date.now },
+    source: { type: String, enum: ['trainer', 'owner'], default: 'trainer' },
+  }
+],
+    associatedGym: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Gym",
+      default: null,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
@@ -86,4 +91,4 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);

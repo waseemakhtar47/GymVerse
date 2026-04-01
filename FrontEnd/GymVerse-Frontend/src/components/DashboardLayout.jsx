@@ -14,7 +14,8 @@ import {
   ChartBarIcon,
   BookOpenIcon,
   PlusCircleIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 
 const DashboardLayout = ({ children, title }) => {
@@ -50,16 +51,15 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'Create Course', icon: PlusCircleIcon, path: '/trainer/create-course' },
         { name: 'My Blogs', icon: DocumentTextIcon, path: '/trainer/blogs' },
         { name: 'Create Blog', icon: PlusCircleIcon, path: '/trainer/create-blog' },
-        { name: 'Find Gym Jobs', icon: BuildingOfficeIcon, path: '/trainer/available-gyms' },
+        { name: 'Find Jobs', icon: BriefcaseIcon, path: '/trainer/available-gyms' },
         { name: 'My Applications', icon: DocumentTextIcon, path: '/trainer/my-applications' },
-        { name: 'Earnings', icon: ChartBarIcon, path: '/trainer/earnings' },
+        { name: 'Offers', icon: DocumentTextIcon, path: '/trainer/my-requests' },
         { name: 'Followers', icon: UserGroupIcon, path: '/trainer/followers' },
       ],
       owner: [
         { name: 'Manage Gyms', icon: BuildingOfficeIcon, path: '/owner/gyms' },
         { name: 'Create Gym', icon: PlusCircleIcon, path: '/owner/create-gym' },
         { name: 'All Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
-        { name: 'Revenue', icon: ChartBarIcon, path: '/owner/revenue' },
       ],
     };
 
@@ -67,6 +67,10 @@ const DashboardLayout = ({ children, title }) => {
   };
 
   const navItems = getNavItems();
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -87,7 +91,7 @@ const DashboardLayout = ({ children, title }) => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-white/10">
-            <h1 className="text-2xl font-bold bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               GymVerse
             </h1>
             <p className="text-sm text-gray-400 mt-1 capitalize">{user?.role} Dashboard</p>
@@ -118,7 +122,7 @@ const DashboardLayout = ({ children, title }) => {
           {/* User Info & Logout */}
           <div className="p-4 border-t border-white/10">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-linear-to-r from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
                 {user?.profilePic ? (
                   <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
@@ -150,7 +154,7 @@ const DashboardLayout = ({ children, title }) => {
           <div className="px-6 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-white">{title}</h1>
             <div className="lg:hidden">
-              <div className="w-8 h-8 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden">
                 {user?.profilePic ? (
                   <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
                 ) : (

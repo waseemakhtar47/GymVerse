@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const gymSchema = new mongoose.Schema(
   {
@@ -8,7 +8,7 @@ const gymSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      default: '',
+      default: "",
     },
     address: {
       type: String,
@@ -17,8 +17,8 @@ const gymSchema = new mongoose.Schema(
     location: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point',
+        enum: ["Point"],
+        default: "Point",
       },
       coordinates: {
         type: [Number],
@@ -28,30 +28,31 @@ const gymSchema = new mongoose.Schema(
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     timings: {
-      open: { type: String, default: '06:00' },
-      close: { type: String, default: '22:00' },
+      open: { type: String, default: "06:00" },
+      close: { type: String, default: "22:00" },
     },
     images: [String],
     facilities: [String],
-    contactNumber: { type: String, default: '' },
+    contactNumber: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
-    
+
     // ✅ NEW: Associated trainers
-    trainers: [
-      {
-        trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-        joinedAt: { type: Date, default: Date.now },
-      }
-    ],
+trainers: [
+  {
+    trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    joinedAt: { type: Date, default: Date.now },
+    source: { type: String, enum: ['trainer', 'owner'], default: 'trainer' },
+  }
+],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-gymSchema.index({ location: '2dsphere' });
+gymSchema.index({ location: "2dsphere" });
 
-module.exports = mongoose.model('Gym', gymSchema);
+module.exports = mongoose.model("Gym", gymSchema);

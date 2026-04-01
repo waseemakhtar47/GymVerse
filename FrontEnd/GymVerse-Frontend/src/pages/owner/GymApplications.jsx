@@ -11,6 +11,7 @@ const GymApplications = () => {
   const [applications, setApplications] = useState([]);
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -33,30 +34,23 @@ const GymApplications = () => {
     }
   };
 
-  const handleApprove = async (trainerId) => {
+  const handleUpdate = async (trainerId, status) => {
+    setProcessing(trainerId);
     try {
-      await gymService.approveTrainer(gymId, trainerId);
-      toast.success('Trainer approved successfully');
+      await gymService.updateApplicationStatus(gymId, trainerId, status);
+      toast.success(status === 'approved' ? 'Trainer approved' : 'Application rejected');
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to approve');
-    }
-  };
-
-  const handleReject = async (trainerId) => {
-    try {
-      await gymService.rejectTrainer(gymId, trainerId);
-      toast.success('Application rejected');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to reject');
+      toast.error(error.response?.data?.message || 'Failed to update');
+    } finally {
+      setProcessing(null);
     }
   };
 
   if (loading) {
     return (
-      <DashboardLayout title="Job Applications" role="owner">
-        <div className="flex items-center justify-center min-h-100">
+      <DashboardLayout title="Trainer Applications" role="owner">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading applications...</p>
@@ -69,7 +63,9 @@ const GymApplications = () => {
   return (
     <DashboardLayout title={`Applications - ${gym?.name || 'Gym'}`} role="owner">
       <div className="space-y-6">
-        <button onClick={() => navigate(`/owner/memberships/${gymId}`)} className="text-gray-400 hover:text-white transition flex items-center gap-2">← Back to Gym</button>
+        <button onClick={() => navigate(`/owner/memberships/${gymId}`)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
+          ← Back to Gym
+        </button>
 
         {applications.length === 0 ? (
           <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
@@ -80,11 +76,11 @@ const GymApplications = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {applications.map((app) => (
-              <div key={app._id} className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
+              <div key={app._id} className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-yellow-500/30">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden">
                         {app.trainerId?.profilePic ? (
                           <img src={app.trainerId.profilePic} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -101,8 +97,20 @@ const GymApplications = () => {
                     <p className="text-gray-500 text-xs mt-2">Applied on: {new Date(app.joinedAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => handleApprove(app.trainerId._id)} className="p-2 bg-green-500/20 rounded-lg text-green-400 hover:bg-green-500/30 transition"><CheckIcon className="w-5 h-5" /></button>
-                    <button onClick={() => handleReject(app.trainerId._id)} className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30 transition"><XMarkIcon className="w-5 h-5" /></button>
+                    <button
+                      onClick={() => handleUpdate(app.trainerId._id, 'approved')}
+                      disabled={processing === app.trainerId._id}
+                      className="p-2 bg-green-500/20 rounded-lg text-green-400 hover:bg-green-500/30 transition"
+                    >
+                      <CheckIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleUpdate(app.trainerId._id, 'rejected')}
+                      disabled={processing === app.trainerId._id}
+                      className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30 transition"
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               </div>

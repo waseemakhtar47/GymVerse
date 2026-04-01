@@ -14,4 +14,7 @@ export const gymService = {
   approveTrainer: (gymId, trainerId) => api.put(`/gyms/${gymId}/trainers/${trainerId}/approve`),
   rejectTrainer: (gymId, trainerId) => api.put(`/gyms/${gymId}/trainers/${trainerId}/reject`),
   removeTrainer: (gymId, trainerId) => api.delete(`/gyms/${gymId}/trainers/${trainerId}`),
+  getGymSentRequests: (gymId) => api.get(`/gyms/${gymId}/sent-requests`),
+  updateApplicationStatus: (gymId, trainerId, status) => api.put(`/gyms/${gymId}/applications/${trainerId}`, { status }),
+  cancelSentRequest: (gymId, trainerId) => api.delete(`/gyms/${gymId}/sent-requests/${trainerId}`),
 };

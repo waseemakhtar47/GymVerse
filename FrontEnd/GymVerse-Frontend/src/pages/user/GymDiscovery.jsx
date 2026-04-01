@@ -1,35 +1,42 @@
-import { useState, useEffect, useRef } from "react";
-import DashboardLayout from "../../components/DashboardLayout";
-import { gymService } from "../../services/gymService";
-import GymMap from "../../components/GymMap";
-import LocationSearch from "../../components/LocationSearch";
-import {
-  MapPinIcon,
-  MagnifyingGlassIcon,
+import { useState, useEffect, useRef } from 'react';
+import DashboardLayout from '../../components/DashboardLayout';
+import { gymService } from '../../services/gymService';
+import { membershipService } from '../../services/membershipService';
+import GymMap from '../../components/GymMap';
+import LocationSearch from '../../components/LocationSearch';
+import { 
+  MapPinIcon, 
+  MagnifyingGlassIcon, 
   XMarkIcon,
   BuildingOfficeIcon,
   ClockIcon,
   PhoneIcon,
   StarIcon,
-} from "@heroicons/react/24/outline";
+  CreditCardIcon
+} from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const GymDiscovery = () => {
   const [gyms, setGyms] = useState([]);
   const [filteredGyms, setFilteredGyms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [selectedGym, setSelectedGym] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState(false);
-  const [locationSearchQuery, setLocationSearchQuery] = useState("");
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [showGymSuggestions, setShowGymSuggestions] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
-
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [selectedGymForMembership, setSelectedGymForMembership] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [buying, setBuying] = useState(false);
+  
   const locationSearchRef = useRef(null);
   const gymSearchRef = useRef(null);
 
@@ -39,10 +46,9 @@ const GymDiscovery = () => {
 
   useEffect(() => {
     if (searchTerm) {
-      const filtered = gyms.filter(
-        (gym) =>
-          gym.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          gym.address?.toLowerCase().includes(searchTerm.toLowerCase()),
+      const filtered = gyms.filter(gym =>
+        gym.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        gym.address?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredGyms(filtered);
       setSearchSuggestions(filtered.slice(0, 5));
@@ -70,7 +76,7 @@ const GymDiscovery = () => {
       setGyms(res.data.data || []);
       setFilteredGyms(res.data.data || []);
     } catch (err) {
-      console.error("Error fetching gyms:", err);
+      console.error('Error fetching gyms:', err);
     } finally {
       setLoading(false);
     }
@@ -87,7 +93,7 @@ const GymDiscovery = () => {
         setFilteredGyms(res.data.data || []);
       }
     } catch (err) {
-      console.error("Error fetching nearby gyms:", err);
+      console.error('Error fetching nearby gyms:', err);
       fetchAllGyms();
     } finally {
       setLoading(false);
@@ -97,71 +103,62 @@ const GymDiscovery = () => {
   const searchLocation = async (query) => {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
       );
       const data = await res.json();
-      setLocationSuggestions(
-        data.map((item) => ({
-          name: item.display_name,
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon),
-        })),
-      );
+      setLocationSuggestions(data.map(item => ({
+        name: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+      })));
       setShowLocationSuggestions(true);
     } catch (err) {
-      console.error("Location search error:", err);
+      console.error('Location search error:', err);
     }
   };
 
   const getUserLocation = () => {
-  setGettingLocation(true);
-  setLocationError(false);
-  
-  if (!navigator.geolocation) {
-    setLocationError(true);
-    setGettingLocation(false);
-    alert("Geolocation not supported");
-    return;
-  }
-  
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const location = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-      
-      
-      // Set location
-      setUserLocation(location);
-      setMapCenter(location);
-      
-      // Fetch nearby gyms
-      fetchNearbyGyms(location.lng, location.lat);
-      
-      setGettingLocation(false);
-      setLocationError(false);
-      setForceUpdate(prev => prev + 1);
-    },
-    (error) => {
-      console.error("Location error:", error.code, error.message);
+    setGettingLocation(true);
+    setLocationError(false);
+    
+    if (!navigator.geolocation) {
       setLocationError(true);
       setGettingLocation(false);
-      alert(`Error: ${error.message}. Please check location settings.`);
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-};
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        console.log('📍 YOUR EXACT LOCATION:', location);
+        setUserLocation(location);
+        setMapCenter(location);
+        fetchNearbyGyms(location.lng, location.lat);
+        setGettingLocation(false);
+        setLocationError(false);
+        setForceUpdate(prev => prev + 1);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        setLocationError(true);
+        setGettingLocation(false);
+      }
+    );
+  };
 
   const handleLocationSelect = (loc) => {
     setUserLocation({ lat: loc.lat, lng: loc.lng });
     setMapCenter({ lat: loc.lat, lng: loc.lng });
     fetchNearbyGyms(loc.lng, loc.lat);
-    setLocationSearchQuery(loc.name.split(",")[0]);
+    setLocationSearchQuery(loc.name.split(',')[0]);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     setLocationError(false);
-    setForceUpdate((prev) => prev + 1);
+    setForceUpdate(prev => prev + 1);
   };
 
   const handleGymSelect = (gym) => {
@@ -169,7 +166,7 @@ const GymDiscovery = () => {
     setSearchSuggestions([]);
     setShowGymSuggestions(false);
     setSelectedGym(gym);
-
+    
     const lat = gym.location?.coordinates?.[1];
     const lng = gym.location?.coordinates?.[0];
     if (lat && lng) {
@@ -181,13 +178,46 @@ const GymDiscovery = () => {
     setSelectedGym(gym);
     const element = document.getElementById(`gym-${gym._id}`);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleBuyMembership = (gym) => {
+    setSelectedGymForMembership(gym);
+    setShowBuyModal(true);
+  };
+
+  const handlePurchase = async () => {
+    if (!selectedGymForMembership) return;
+    
+    setBuying(true);
+    try {
+      await membershipService.createMembership({
+        gymId: selectedGymForMembership._id,
+        plan: selectedPlan,
+      });
+      toast.success('Membership purchased successfully!');
+      setShowBuyModal(false);
+      setSelectedGymForMembership(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to purchase membership');
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  const getPlanDetails = (plan) => {
+    switch(plan) {
+      case 'monthly': return { name: 'Monthly', price: '$49', duration: '1 month' };
+      case 'quarterly': return { name: 'Quarterly', price: '$129', duration: '3 months' };
+      case 'yearly': return { name: 'Yearly', price: '$499', duration: '12 months' };
+      default: return { name: 'Unknown', price: '$0', duration: 'Unknown' };
     }
   };
 
   const handleReset = () => {
-    setSearchTerm("");
-    setLocationSearchQuery("");
+    setSearchTerm('');
+    setLocationSearchQuery('');
     setSelectedGym(null);
     setLocationSuggestions([]);
     setSearchSuggestions([]);
@@ -199,21 +229,15 @@ const GymDiscovery = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        gymSearchRef.current &&
-        !gymSearchRef.current.contains(event.target)
-      ) {
+      if (gymSearchRef.current && !gymSearchRef.current.contains(event.target)) {
         setShowGymSuggestions(false);
       }
-      if (
-        locationSearchRef.current &&
-        !locationSearchRef.current.contains(event.target)
-      ) {
+      if (locationSearchRef.current && !locationSearchRef.current.contains(event.target)) {
         setShowLocationSuggestions(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   if (loading && gyms.length === 0) {
@@ -232,6 +256,7 @@ const GymDiscovery = () => {
   return (
     <DashboardLayout title="Find Gyms Near You" role="user">
       <div className="space-y-4">
+        {/* Search Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="relative" ref={locationSearchRef}>
             <div className="relative">
@@ -240,21 +265,12 @@ const GymDiscovery = () => {
                 type="text"
                 value={locationSearchQuery}
                 onChange={(e) => setLocationSearchQuery(e.target.value)}
-                onFocus={() =>
-                  locationSearchQuery.length >= 3 &&
-                  setShowLocationSuggestions(true)
-                }
+                onFocus={() => locationSearchQuery.length >= 3 && setShowLocationSuggestions(true)}
                 placeholder="Search city, area, or address..."
                 className="w-full pl-10 pr-10 py-3 bg-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
               {locationSearchQuery && (
-                <button
-                  onClick={() => {
-                    setLocationSearchQuery("");
-                    setLocationSuggestions([]);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                >
+                <button onClick={() => { setLocationSearchQuery(''); setLocationSuggestions([]); }} className="absolute right-3 top-1/2 -translate-y-1/2">
                   <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-white" />
                 </button>
               )}
@@ -262,11 +278,7 @@ const GymDiscovery = () => {
             {showLocationSuggestions && locationSuggestions.length > 0 && (
               <div className="absolute z-50 w-full mt-2 bg-gray-900 border border-white/10 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
                 {locationSuggestions.map((loc, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleLocationSelect(loc)}
-                    className="w-full text-left px-4 py-3 hover:bg-white/10 transition border-b border-white/5 last:border-0"
-                  >
+                  <button key={idx} onClick={() => handleLocationSelect(loc)} className="w-full text-left px-4 py-3 hover:bg-white/10 transition border-b border-white/5 last:border-0">
                     <p className="text-white text-sm">{loc.name}</p>
                   </button>
                 ))}
@@ -286,13 +298,7 @@ const GymDiscovery = () => {
                 className="w-full pl-10 pr-10 py-3 bg-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
               {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm("");
-                    setSearchSuggestions([]);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                >
+                <button onClick={() => { setSearchTerm(''); setSearchSuggestions([]); }} className="absolute right-3 top-1/2 -translate-y-1/2">
                   <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-white" />
                 </button>
               )}
@@ -300,15 +306,9 @@ const GymDiscovery = () => {
             {showGymSuggestions && searchSuggestions.length > 0 && (
               <div className="absolute z-50 w-full mt-2 bg-gray-900 border border-white/10 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
                 {searchSuggestions.map((gym) => (
-                  <button
-                    key={gym._id}
-                    onClick={() => handleGymSelect(gym)}
-                    className="w-full text-left px-4 py-3 hover:bg-white/10 transition border-b border-white/5 last:border-0"
-                  >
+                  <button key={gym._id} onClick={() => handleGymSelect(gym)} className="w-full text-left px-4 py-3 hover:bg-white/10 transition border-b border-white/5 last:border-0">
                     <p className="text-white font-medium">{gym.name}</p>
-                    <p className="text-gray-400 text-xs">
-                      {gym.address?.substring(0, 60)}
-                    </p>
+                    <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
                   </button>
                 ))}
               </div>
@@ -316,6 +316,7 @@ const GymDiscovery = () => {
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
           <button
             onClick={getUserLocation}
@@ -334,23 +335,16 @@ const GymDiscovery = () => {
               </>
             )}
           </button>
-
-          <button
-            onClick={handleReset}
-            className="px-5 py-2.5 bg-gray-700 rounded-xl text-white hover:bg-gray-600 transition flex items-center gap-2"
-          >
+          <button onClick={handleReset} className="px-5 py-2.5 bg-gray-700 rounded-xl text-white hover:bg-gray-600 transition flex items-center gap-2">
             <XMarkIcon className="w-5 h-5" />
             <span>Reset</span>
           </button>
         </div>
 
+        {/* Stats */}
         <div className="flex justify-between items-center">
           <p className="text-gray-400 text-sm">
-            🏋️ Found{" "}
-            <span className="text-purple-400 font-semibold">
-              {filteredGyms.length}
-            </span>{" "}
-            gyms
+            🏋️ Found <span className="text-purple-400 font-semibold">{filteredGyms.length}</span> gyms
           </p>
           {userLocation && !locationError && (
             <p className="text-green-400 text-sm flex items-center gap-1">
@@ -360,6 +354,7 @@ const GymDiscovery = () => {
           )}
         </div>
 
+        {/* Map and Gym List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-gray-900 sticky top-20">
@@ -379,21 +374,14 @@ const GymDiscovery = () => {
                 <BuildingOfficeIcon className="w-5 h-5" />
                 Gyms Nearby
               </h3>
-              <p className="text-gray-400 text-xs mt-1">
-                Click on any gym to view on map
-              </p>
+              <p className="text-gray-400 text-xs mt-1">Click on any gym to view on map</p>
             </div>
             <div className="max-h-125 overflow-y-auto">
               {filteredGyms.length === 0 ? (
                 <div className="text-center py-12">
                   <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-500 mb-3" />
                   <p className="text-gray-400">No gyms found</p>
-                  <button
-                    onClick={handleReset}
-                    className="mt-3 text-purple-400 text-sm hover:text-purple-300"
-                  >
-                    Clear search
-                  </button>
+                  <button onClick={handleReset} className="mt-3 text-purple-400 text-sm hover:text-purple-300">Clear search</button>
                 </div>
               ) : (
                 filteredGyms.map((gym) => (
@@ -402,48 +390,39 @@ const GymDiscovery = () => {
                     id={`gym-${gym._id}`}
                     onClick={() => handleGymSelect(gym)}
                     className={`p-4 border-b border-white/10 cursor-pointer transition-all hover:bg-white/10 ${
-                      selectedGym?._id === gym._id
-                        ? "bg-purple-600/20 border-l-4 border-l-purple-500"
-                        : ""
+                      selectedGym?._id === gym._id ? 'bg-purple-600/20 border-l-4 border-l-purple-500' : ''
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h4 className="text-white font-medium text-base">
-                          {gym.name}
-                        </h4>
+                        <h4 className="text-white font-medium text-base">{gym.name}</h4>
                         <div className="flex items-center gap-1 mt-1">
                           <StarIcon className="w-3 h-3 text-yellow-500" />
                           <span className="text-gray-400 text-xs">4.8</span>
-                          <span className="text-gray-500 text-xs ml-1">
-                            (120 reviews)
-                          </span>
+                          <span className="text-gray-500 text-xs ml-1">(120 reviews)</span>
                         </div>
-                        <p className="text-gray-400 text-xs mt-2 line-clamp-2">
-                          {gym.address}
-                        </p>
+                        <p className="text-gray-400 text-xs mt-2 line-clamp-2">{gym.address}</p>
                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                          {gym.timings?.open && (
-                            <span className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3" />
-                              {gym.timings.open} - {gym.timings.close}
-                            </span>
-                          )}
-                          {gym.contactNumber && (
-                            <span className="flex items-center gap-1">
-                              <PhoneIcon className="w-3 h-3" />
-                              {gym.contactNumber}
-                            </span>
-                          )}
+                          {gym.timings?.open && <span className="flex items-center gap-1"><ClockIcon className="w-3 h-3" />{gym.timings.open} - {gym.timings.close}</span>}
+                          {gym.contactNumber && <span className="flex items-center gap-1"><PhoneIcon className="w-3 h-3" />{gym.contactNumber}</span>}
                         </div>
-                        {gym.distance && (
-                          <p className="text-purple-400 text-xs mt-2">
-                            📍 {gym.distance} km away
-                          </p>
+                        {gym.facilities && gym.facilities.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {gym.facilities.slice(0, 3).map((fac, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-gray-400">{fac}</span>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <div className="ml-3">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        {/* ✅ Buy Membership Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleBuyMembership(gym); }}
+                          className="px-3 py-1 bg-green-600 rounded-lg text-white text-xs hover:bg-green-700 transition flex items-center gap-1"
+                        >
+                          <CreditCardIcon className="w-3 h-3" />
+                          Buy
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -455,19 +434,79 @@ const GymDiscovery = () => {
 
         {locationError && (
           <div className="bg-yellow-500/10 border border-yellow-500 rounded-xl p-3 text-yellow-400 text-sm text-center">
-            <p>
-              📍 Unable to get your location. Please allow location access or
-              search by city name above!
-            </p>
-            <button
-              onClick={getUserLocation}
-              className="mt-2 text-purple-400 text-xs hover:text-purple-300"
-            >
-              Try Again
-            </button>
+            <p>📍 Unable to get your location. Please allow location access or search by city name above!</p>
+            <button onClick={getUserLocation} className="mt-2 text-purple-400 text-xs hover:text-purple-300">Try Again</button>
           </div>
         )}
       </div>
+
+      {/* Buy Membership Modal */}
+      {showBuyModal && selectedGymForMembership && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowBuyModal(false)}>
+          <div className="bg-gray-900 rounded-xl max-w-md w-full mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">Buy Membership</h3>
+                <button onClick={() => setShowBuyModal(false)} className="text-gray-400 hover:text-white">
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                  {selectedGymForMembership.profilePic ? (
+                    <img src={selectedGymForMembership.profilePic} alt={selectedGymForMembership.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Gym</p>
+                  <p className="text-white font-semibold">{selectedGymForMembership.name}</p>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label className="text-gray-400 text-sm block mb-2">Select Plan</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['monthly', 'quarterly', 'yearly'].map((plan) => {
+                    const details = getPlanDetails(plan);
+                    return (
+                      <button
+                        key={plan}
+                        onClick={() => setSelectedPlan(plan)}
+                        className={`p-3 rounded-lg border transition ${
+                          selectedPlan === plan
+                            ? 'border-purple-500 bg-purple-500/20'
+                            : 'border-white/10 hover:border-purple-500'
+                        }`}
+                      >
+                        <p className="text-white font-semibold text-sm">{details.name}</p>
+                        <p className="text-purple-400 text-xs">{details.price}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              <div className="bg-white/5 rounded-lg p-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Total Amount</span>
+                  <span className="text-white font-bold">{getPlanDetails(selectedPlan).price}</span>
+                </div>
+              </div>
+              
+              <button
+                onClick={handlePurchase}
+                disabled={buying}
+                className="w-full py-3 bg-purple-600 rounded-lg text-white font-semibold hover:bg-purple-700 transition disabled:opacity-50"
+              >
+                {buying ? 'Processing...' : `Pay ${getPlanDetails(selectedPlan).price}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

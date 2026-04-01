@@ -162,34 +162,8 @@ const deleteGym = async (req, res) => {
   }
 };
 
-// ✅ NEW: Get gym applications (owner)
-const getGymApplications = async (req, res) => {
-  try {
-    const gym = await Gym.findById(req.params.id).populate('trainers.trainerId', 'name email profilePic phone');
-    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
-    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-    const pendingApplications = gym.trainers.filter(t => t.status === 'pending');
-    res.json({ success: true, data: pendingApplications });
-  } catch (error) {
-    console.error('getGymApplications error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
-// ✅ NEW: Get gym trainers (approved)
-const getGymTrainers = async (req, res) => {
-  try {
-    const gym = await Gym.findById(req.params.id).populate('trainers.trainerId', 'name email profilePic phone');
-    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
-    const approvedTrainers = gym.trainers.filter(t => t.status === 'approved');
-    res.json({ success: true, data: approvedTrainers });
-  } catch (error) {
-    console.error('getGymTrainers error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+
 
 // ✅ NEW: Approve trainer
 const approveTrainer = async (req, res) => {
@@ -246,22 +220,198 @@ const rejectTrainer = async (req, res) => {
   }
 };
 
-// ✅ NEW: Remove trainer from gym
-const removeTrainer = async (req, res) => {
+// ============== TRAINER MANAGEMENT FUNCTIONS (FOR OWNER) ==============
+
+// @desc    Get gym applications (trainer-initiated)
+const getGymApplications = async (req, res) => {
   try {
-    const { id, trainerId } = req.params;
+    const { id } = req.params;
+    
     const gym = await Gym.findById(id);
     if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
     if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
     
+    // Only trainer-initiated pending applications
+    const applications = gym.trainers.filter(t => t.source === 'trainer' && t.status === 'pending');
+    
+    // Populate trainer details
+    const populatedApps = await Promise.all(applications.map(async (app) => {
+      const trainer = await User.findById(app.trainerId).select('name email profilePic phone');
+      return { ...app.toObject(), trainerId: trainer };
+    }));
+    
+    res.json({ success: true, data: populatedApps });
+  } catch (error) {
+    console.error('getGymApplications error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get gym sent requests (owner-initiated)
+const getGymSentRequests = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Only owner-initiated pending requests
+    const requests = gym.trainers.filter(t => t.source === 'owner' && t.status === 'pending');
+    
+    // Populate trainer details
+    const populatedRequests = await Promise.all(requests.map(async (req) => {
+      const trainer = await User.findById(req.trainerId).select('name email profilePic phone');
+      return { ...req.toObject(), trainerId: trainer };
+    }));
+    
+    res.json({ success: true, data: populatedRequests });
+  } catch (error) {
+    console.error('getGymSentRequests error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get gym trainers (approved)
+const getGymTrainers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Only approved trainers
+    const trainers = gym.trainers.filter(t => t.status === 'approved');
+    
+    // Populate trainer details
+    const populatedTrainers = await Promise.all(trainers.map(async (trainer) => {
+      const trainerUser = await User.findById(trainer.trainerId).select('name email profilePic phone');
+      return { ...trainer.toObject(), trainerId: trainerUser };
+    }));
+    
+    res.json({ success: true, data: populatedTrainers });
+  } catch (error) {
+    console.error('getGymTrainers error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Owner approves/rejects application (trainer-initiated)
+const updateApplicationStatus = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    const { status } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+    
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Update gym side
+    const gymTrainer = gym.trainers.find(t => t.trainerId.toString() === trainerId);
+    if (gymTrainer) {
+      gymTrainer.status = status;
+      if (status === 'approved') {
+        gymTrainer.joinedAt = new Date();
+      }
+      await gym.save();
+    }
+    
+    // Update trainer side
+    const trainer = await User.findById(trainerId);
+    const trainerApp = trainer.appliedGyms.find(a => a.gymId.toString() === id);
+    if (trainerApp) {
+      trainerApp.status = status;
+      await trainer.save();
+    }
+    
+    // Update associated gym if approved
+    if (status === 'approved') {
+      trainer.associatedGym = id;
+      await trainer.save();
+    }
+    
+    res.json({ 
+      success: true, 
+      message: status === 'approved' ? 'Trainer approved successfully' : 'Application rejected' 
+    });
+  } catch (error) {
+    console.error('updateApplicationStatus error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Owner cancels sent request (owner-initiated)
+const cancelSentRequest = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Remove from gym
+    gym.trainers = gym.trainers.filter(t => !(t.trainerId.toString() === trainerId && t.source === 'owner'));
+    await gym.save();
+    
+    // Remove from trainer
+    const trainer = await User.findById(trainerId);
+    if (trainer) {
+      trainer.appliedGyms = trainer.appliedGyms.filter(a => !(a.gymId.toString() === id && a.source === 'owner'));
+      await trainer.save();
+    }
+    
+    res.json({ success: true, message: 'Request cancelled' });
+  } catch (error) {
+    console.error('cancelSentRequest error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Remove trainer from gym
+const removeTrainer = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Remove from gym
     gym.trainers = gym.trainers.filter(t => t.trainerId.toString() !== trainerId);
     await gym.save();
     
+    // Remove from trainer
     const trainer = await User.findById(trainerId);
-    trainer.associatedGym = null;
-    await trainer.save();
+    if (trainer) {
+      trainer.appliedGyms = trainer.appliedGyms.filter(a => a.gymId.toString() !== id);
+      if (trainer.associatedGym?.toString() === id) {
+        trainer.associatedGym = null;
+      }
+      await trainer.save();
+    }
     
     res.json({ success: true, message: 'Trainer removed from gym' });
   } catch (error) {
@@ -277,9 +427,10 @@ module.exports = {
   updateGym,
   deleteGym,
   getNearbyGyms,
-   getGymApplications,
+  getGymApplications,
+  getGymSentRequests,
   getGymTrainers,
-  approveTrainer,
-  rejectTrainer,
+  updateApplicationStatus,
+  cancelSentRequest,
   removeTrainer,
 };

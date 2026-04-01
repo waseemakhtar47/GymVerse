@@ -11,22 +11,27 @@ const {
   getAvailableGyms,
   applyToGym,
   getMyApplications,
+  getMyRequests,
+  updateRequestStatus,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Public
 router.get('/', getAllTrainers);
 
+// Trainer specific
 router.get('/following', protect, authorize('user'), getFollowingTrainers);
 router.get('/my/followers', protect, authorize('trainer'), getMyFollowers);
 router.get('/my/stats', protect, authorize('trainer'), getTrainerStats);
-
-// ✅ NEW: Trainer job application routes
 router.get('/available-gyms', protect, authorize('trainer'), getAvailableGyms);
 router.get('/my-applications', protect, authorize('trainer'), getMyApplications);
-router.post('/apply/:gymId', protect, authorize('trainer'), applyToGym);
+router.get('/my-requests', protect, authorize('trainer'), getMyRequests);
+router.put('/requests/:requestId', protect, authorize('trainer'), updateRequestStatus);
+router.post('/apply/:gymId', protect, authorize('trainer', 'owner'), applyToGym);
 
+// Dynamic
 router.get('/:id', getTrainerById);
 router.get('/:id/courses', getTrainerCourses);
 router.get('/:id/blogs', getTrainerBlogs);

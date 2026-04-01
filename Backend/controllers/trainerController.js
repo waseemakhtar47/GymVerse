@@ -3,6 +3,49 @@ const Gym = require('../models/Gym');
 const Course = require('../models/Course');
 const Blog = require('../models/Blog');
 
+// ============== HELPER FUNCTIONS ==============
+const syncRelation = async (trainerId, gymId, status, source) => {
+  const trainer = await User.findById(trainerId);
+  const gym = await Gym.findById(gymId);
+  
+  if (!trainer || !gym) return false;
+  
+  // Update trainer's appliedGyms
+  const existingTrainerApp = trainer.appliedGyms.find(a => a.gymId.toString() === gymId);
+  if (existingTrainerApp) {
+    existingTrainerApp.status = status;
+    existingTrainerApp.source = source;
+  } else {
+    trainer.appliedGyms.push({ gymId, status, source });
+  }
+  await trainer.save();
+  
+  // Update gym's trainers
+  const existingGymTrainer = gym.trainers.find(t => t.trainerId.toString() === trainerId);
+  if (existingGymTrainer) {
+    existingGymTrainer.status = status;
+    existingGymTrainer.source = source;
+    if (status === 'approved') {
+      existingGymTrainer.joinedAt = new Date();
+    }
+  } else {
+    gym.trainers.push({ trainerId, status, source });
+  }
+  await gym.save();
+  
+  // Update associated gym
+  if (status === 'approved') {
+    trainer.associatedGym = gymId;
+  } else if (status === 'rejected' && trainer.associatedGym?.toString() === gymId) {
+    trainer.associatedGym = null;
+  }
+  await trainer.save();
+  
+  return true;
+};
+
+// ============== MAIN CONTROLLERS ==============
+
 // @desc    Get all trainers
 const getAllTrainers = async (req, res) => {
   try {
@@ -147,18 +190,14 @@ const getTrainerCourses = async (req, res) => {
 const getTrainerBlogs = async (req, res) => {
   try {
     const trainerId = req.params.id;
-    
     const trainer = await User.findById(trainerId);
     if (!trainer) {
       return res.status(404).json({ success: false, message: 'Trainer not found' });
     }
     
-    const blogs = await Blog.find({ 
-      authorId: trainerId, 
-      isPublished: true 
-    })
-    .select('title views createdAt excerpt featuredImage category')
-    .sort({ createdAt: -1 });
+    const blogs = await Blog.find({ authorId: trainerId, isPublished: true })
+      .select('title views createdAt excerpt featuredImage category')
+      .sort({ createdAt: -1 });
     
     const blogsWithCounts = blogs.map(blog => ({
       ...blog.toObject(),
@@ -184,39 +223,300 @@ const getAvailableGyms = async (req, res) => {
   }
 };
 
-// @desc    Apply to a gym
+// @desc    Apply to a gym (trainer) OR Send hiring request (owner)
 const applyToGym = async (req, res) => {
   try {
     const { gymId } = req.params;
-    const trainerId = req.user.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
     
     const gym = await Gym.findById(gymId);
     if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
     
-    const alreadyApplied = gym.trainers.some(t => t.trainerId.toString() === trainerId);
-    if (alreadyApplied) return res.status(400).json({ success: false, message: 'Already applied to this gym' });
+    let trainerId = userId;
+    let source = 'trainer'; // default
     
-    gym.trainers.push({ trainerId, status: 'pending' });
-    await gym.save();
+    if (userRole === 'owner') {
+      const { trainerId: trainerIdFromBody } = req.body;
+      if (!trainerIdFromBody) {
+        return res.status(400).json({ success: false, message: 'Trainer ID is required' });
+      }
+      trainerId = trainerIdFromBody;
+      source = 'owner'; // ✅ Owner-initiated request
+      
+      const trainer = await User.findById(trainerId);
+      if (!trainer || trainer.role !== 'trainer') {
+        return res.status(404).json({ success: false, message: 'Trainer not found' });
+      }
+    }
     
+    // Check existing relation
     const trainer = await User.findById(trainerId);
-    trainer.appliedGyms.push({ gymId, status: 'pending' });
+    const existingApp = trainer.appliedGyms.find(a => a.gymId.toString() === gymId);
+    
+    if (existingApp) {
+      if (existingApp.status === 'approved') {
+        return res.status(400).json({ success: false, message: 'Already associated with this gym' });
+      }
+      if (existingApp.status === 'pending') {
+        return res.status(400).json({ success: false, message: 'Request already pending' });
+      }
+      if (existingApp.status === 'rejected') {
+        // Update to pending
+        existingApp.status = 'pending';
+        existingApp.source = source;
+        await trainer.save();
+        
+        // Also update gym
+        const gymTrainer = gym.trainers.find(t => t.trainerId.toString() === trainerId);
+        if (gymTrainer) {
+          gymTrainer.status = 'pending';
+          gymTrainer.source = source;
+          await gym.save();
+        } else {
+          gym.trainers.push({ trainerId, status: 'pending', source });
+          await gym.save();
+        }
+        
+        return res.json({ 
+          success: true, 
+          message: source === 'owner' ? 'Hiring request sent again' : 'Application resubmitted' 
+        });
+      }
+    }
+    
+    // Create new request
+    trainer.appliedGyms.push({ gymId, status: 'pending', source });
     await trainer.save();
     
-    res.json({ success: true, message: 'Application submitted successfully' });
+    gym.trainers.push({ trainerId, status: 'pending', source });
+    await gym.save();
+    
+    const trainerName = await User.findById(trainerId);
+    const message = source === 'owner' 
+      ? `Hiring request sent to ${trainerName.name} successfully` 
+      : 'Application submitted successfully';
+    
+    res.json({ success: true, message, source });
   } catch (error) {
     console.error('applyToGym error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get my applications (trainer)
+// @desc    Get my applications (trainer-initiated only)
 const getMyApplications = async (req, res) => {
   try {
-    const trainer = await User.findById(req.user.id).populate('appliedGyms.gymId', 'name address contactNumber');
-    res.json({ success: true, data: trainer.appliedGyms || [] });
+    const trainer = await User.findById(req.user.id)
+      .populate('appliedGyms.gymId', 'name address contactNumber');
+    
+    // ✅ Only show trainer-initiated (source = 'trainer')
+    const applications = (trainer.appliedGyms || []).filter(a => a.source === 'trainer');
+    res.json({ success: true, data: applications });
   } catch (error) {
     console.error('getMyApplications error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get offers (owner-initiated requests for trainer)
+const getMyRequests = async (req, res) => {
+  try {
+    const trainer = await User.findById(req.user.id)
+      .populate('appliedGyms.gymId', 'name address contactNumber ownerId')
+      .populate('appliedGyms.gymId.ownerId', 'name email');
+    
+    // ✅ Only show owner-initiated (source = 'owner')
+    const requests = (trainer.appliedGyms || []).filter(a => a.source === 'owner');
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    console.error('getMyRequests error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Accept or reject request (for trainer)
+const updateRequestStatus = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+    
+    const trainer = await User.findById(req.user.id);
+    const request = trainer.appliedGyms.id(requestId);
+    
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+    
+    const gymId = request.gymId;
+    
+    // Update status
+    request.status = status;
+    await trainer.save();
+    
+    // Update gym side
+    const gym = await Gym.findById(gymId);
+    if (gym) {
+      const gymTrainer = gym.trainers.find(t => t.trainerId.toString() === req.user.id);
+      if (gymTrainer) {
+        gymTrainer.status = status;
+        if (status === 'approved') {
+          gymTrainer.joinedAt = new Date();
+        }
+        await gym.save();
+      }
+    }
+    
+    // Update associated gym
+    if (status === 'approved') {
+      trainer.associatedGym = gymId;
+      await trainer.save();
+    }
+    
+    res.json({ 
+      success: true, 
+      message: status === 'approved' ? 'Congratulations! You are now associated with the gym' : 'Request declined',
+      status: status
+    });
+  } catch (error) {
+    console.error('updateRequestStatus error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get gym applications (for owner) - trainer-initiated requests
+const getGymApplications = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // ✅ Only show trainer-initiated applications
+    const applications = gym.trainers.filter(t => t.source === 'trainer' && t.status === 'pending');
+    
+    // Populate trainer details
+    const populatedApps = await Promise.all(applications.map(async (app) => {
+      const trainer = await User.findById(app.trainerId).select('name email profilePic phone');
+      return { ...app.toObject(), trainerId: trainer };
+    }));
+    
+    res.json({ success: true, data: populatedApps });
+  } catch (error) {
+    console.error('getGymApplications error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get sent requests (for owner) - owner-initiated requests
+const getGymSentRequests = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // ✅ Only show owner-initiated requests
+    const requests = gym.trainers.filter(t => t.source === 'owner' && t.status === 'pending');
+    
+    // Populate trainer details
+    const populatedRequests = await Promise.all(requests.map(async (req) => {
+      const trainer = await User.findById(req.trainerId).select('name email profilePic phone');
+      return { ...req.toObject(), trainerId: trainer };
+    }));
+    
+    res.json({ success: true, data: populatedRequests });
+  } catch (error) {
+    console.error('getGymSentRequests error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Owner approves/rejects application (trainer-initiated)
+const updateApplicationStatus = async (req, res) => {
+  try {
+    const { gymId, trainerId } = req.params;
+    const { status } = req.body;
+    
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Update gym side
+    const gymTrainer = gym.trainers.find(t => t.trainerId.toString() === trainerId);
+    if (gymTrainer) {
+      gymTrainer.status = status;
+      if (status === 'approved') {
+        gymTrainer.joinedAt = new Date();
+      }
+      await gym.save();
+    }
+    
+    // Update trainer side
+    const trainer = await User.findById(trainerId);
+    const trainerApp = trainer.appliedGyms.find(a => a.gymId.toString() === gymId);
+    if (trainerApp) {
+      trainerApp.status = status;
+      await trainer.save();
+    }
+    
+    // Update associated gym if approved
+    if (status === 'approved') {
+      trainer.associatedGym = gymId;
+      await trainer.save();
+    }
+    
+    res.json({ 
+      success: true, 
+      message: status === 'approved' ? 'Trainer approved successfully' : 'Application rejected' 
+    });
+  } catch (error) {
+    console.error('updateApplicationStatus error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Owner cancels sent request (owner-initiated)
+const cancelSentRequest = async (req, res) => {
+  try {
+    const { gymId, trainerId } = req.params;
+    
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Remove from gym
+    gym.trainers = gym.trainers.filter(t => !(t.trainerId.toString() === trainerId && t.source === 'owner'));
+    await gym.save();
+    
+    // Remove from trainer
+    const trainer = await User.findById(trainerId);
+    if (trainer) {
+      trainer.appliedGyms = trainer.appliedGyms.filter(a => !(a.gymId.toString() === gymId && a.source === 'owner'));
+      await trainer.save();
+    }
+    
+    res.json({ success: true, message: 'Request cancelled' });
+  } catch (error) {
+    console.error('cancelSentRequest error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -233,4 +533,10 @@ module.exports = {
   getAvailableGyms,
   applyToGym,
   getMyApplications,
+  getMyRequests,
+  updateRequestStatus,
+  getGymApplications,
+  getGymSentRequests,
+  updateApplicationStatus,
+  cancelSentRequest,
 };
