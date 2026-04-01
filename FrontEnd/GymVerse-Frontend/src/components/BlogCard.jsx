@@ -58,8 +58,12 @@ const BlogCard = ({ blog, onRefresh }) => {
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-linear-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white text-sm">{blog.authorId?.name?.charAt(0)}</span>
+            <div className="w-8 h-8 rounded-full bg-linear-to-r from-blue-500 to-purple-600 overflow-hidden flex items-center justify-center">
+              {blog.authorId?.profilePic ? (
+                <img src={blog.authorId.profilePic} alt={blog.authorId.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white text-sm font-bold">{blog.authorId?.name?.charAt(0)}</span>
+              )}
             </div>
             <div>
               <p className="text-white text-sm font-medium">{blog.authorId?.name}</p>
@@ -94,12 +98,21 @@ const BlogCard = ({ blog, onRefresh }) => {
                 ) : (
                   comments.map((c, idx) => (
                     <div key={idx} className="bg-white/5 rounded-lg p-2">
-                      <p className="text-white text-sm">
-                        <span className="font-semibold">
-                          {c.userId?.name || 'Anonymous'}:
-                        </span> {c.comment}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden shrink-0">
+                          {c.userId?.profilePic ? (
+                            <img src={c.userId.profilePic} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                              {c.userId?.name?.charAt(0).toUpperCase() || 'A'}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-white text-sm flex-1">
+                          <span className="font-semibold">{c.userId?.name || 'Anonymous'}:</span> {c.comment}
+                        </p>
+                      </div>
+                      <p className="text-gray-500 text-xs mt-1 ml-8">
                         {new Date(c.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -108,7 +121,16 @@ const BlogCard = ({ blog, onRefresh }) => {
               </div>
               
               {user && (
-                <form onSubmit={handleComment} className="flex gap-2">
+                <form onSubmit={handleComment} className="flex gap-2 mt-3">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden shrink-0">
+                    {user?.profilePic ? (
+                      <img src={user.profilePic} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={comment}

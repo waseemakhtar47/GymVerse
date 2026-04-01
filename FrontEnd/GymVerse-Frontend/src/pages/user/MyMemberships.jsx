@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { membershipService } from '../../services/membershipService';
 import { gymService } from '../../services/gymService';
@@ -8,8 +8,7 @@ import {
   XMarkIcon,
   BuildingOfficeIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XCircleIcon
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -25,7 +24,11 @@ const MyMemberships = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    fetchData();
+  }, [refreshKey]);
+
+  const fetchData = async () => {
     setLoading(true);
     try {
       const [membershipsRes, gymsRes] = await Promise.all([
@@ -40,11 +43,7 @@ const MyMemberships = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshKey]);
+  };
 
   const handleBuy = async () => {
     if (!selectedGym) {
@@ -104,7 +103,6 @@ const MyMemberships = () => {
     return remaining;
   };
 
-  // Filter memberships by status
   const activeMemberships = memberships.filter(m => m.status === 'active');
   const expiredMemberships = memberships.filter(m => m.status === 'expired');
   const cancelledMemberships = memberships.filter(m => m.status === 'cancelled');
@@ -125,7 +123,7 @@ const MyMemberships = () => {
   return (
     <DashboardLayout title="My Memberships" role="user">
       <div className="space-y-6">
-        {/* Tabs with Separate Counts */}
+        {/* Tabs */}
         <div className="flex gap-2 border-b border-white/10 pb-2 flex-wrap">
           <button
             onClick={() => setActiveTab('active')}
@@ -151,7 +149,7 @@ const MyMemberships = () => {
               activeTab === 'cancelled' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
-            <XCircleIcon className="w-4 h-4" />
+            <XMarkIcon className="w-4 h-4" />
             Cancelled ({cancelledMemberships.length})
           </button>
           <button
@@ -188,8 +186,19 @@ const MyMemberships = () => {
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-green-500/30 hover:scale-105 transition">
                       <div className="h-24 bg-linear-to-r from-green-600 to-emerald-600 p-4">
-                        <h3 className="text-white font-bold text-lg">{m.gymId?.name || 'Gym'}</h3>
-                        <p className="text-white/80 text-sm">{plan.name} Plan</p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
+                            {m.gymId?.profilePic ? (
+                              <img src={m.gymId.profilePic} alt={m.gymId?.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-bold text-lg">{m.gymId?.name || 'Gym'}</h3>
+                            <p className="text-white/80 text-sm">{plan.name} Plan</p>
+                          </div>
+                        </div>
                       </div>
                       
                       <div className="p-4 space-y-3">
@@ -252,8 +261,19 @@ const MyMemberships = () => {
                 {expiredMemberships.map((m) => (
                   <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-red-500/30">
                     <div className="h-20 bg-gray-700 p-4">
-                      <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
-                      <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
+                          {m.gymId?.profilePic ? (
+                            <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-bold">{m.gymId?.name}</h3>
+                          <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                        </div>
+                      </div>
                     </div>
                     <div className="p-4">
                       <div className="flex justify-between mb-2">
@@ -283,7 +303,7 @@ const MyMemberships = () => {
           <div>
             {cancelledMemberships.length === 0 ? (
               <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
-                <XCircleIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
+                <XMarkIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">No Cancelled Memberships</h3>
                 <p className="text-gray-400">You haven't cancelled any memberships.</p>
               </div>
@@ -292,8 +312,19 @@ const MyMemberships = () => {
                 {cancelledMemberships.map((m) => (
                   <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-gray-500/30 opacity-80">
                     <div className="h-20 bg-gray-800 p-4">
-                      <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
-                      <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
+                          {m.gymId?.profilePic ? (
+                            <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
+                          <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                        </div>
+                      </div>
                     </div>
                     <div className="p-4">
                       <div className="flex justify-between mb-2">
@@ -342,9 +373,19 @@ const MyMemberships = () => {
                     }}
                     className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10 cursor-pointer hover:border-purple-500 transition"
                   >
-                    <BuildingOfficeIcon className="w-10 h-10 text-purple-400 mb-3" />
-                    <h4 className="text-white font-semibold">{gym.name}</h4>
-                    <p className="text-gray-400 text-xs mt-1">{gym.address?.substring(0, 60)}</p>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                        {gym.profilePic ? (
+                          <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-white font-semibold">{gym.name}</h4>
+                        <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
+                      </div>
+                    </div>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="text-xs text-gray-500">Starting at</span>
                       <span className="text-purple-400 font-bold">$49/mo</span>
@@ -386,9 +427,18 @@ const MyMemberships = () => {
                   </button>
                 </div>
                 
-                <div className="mb-4">
-                  <p className="text-gray-400 text-sm">Gym</p>
-                  <p className="text-white font-semibold">{selectedGym.name}</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
+                    {selectedGym.profilePic ? (
+                      <img src={selectedGym.profilePic} alt={selectedGym.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Gym</p>
+                    <p className="text-white font-semibold">{selectedGym.name}</p>
+                  </div>
                 </div>
                 
                 <div className="mb-4">

@@ -23,7 +23,7 @@ const gymSchema = new mongoose.Schema(
       coordinates: {
         type: [Number],
         required: true,
-        default: [77.281845, 28.561123], // Ganjdundwara coordinates as default
+        default: [77.281845, 28.561123],
       },
     },
     ownerId: {
@@ -38,17 +38,20 @@ const gymSchema = new mongoose.Schema(
     images: [String],
     facilities: [String],
     contactNumber: { type: String, default: '' },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    isActive: { type: Boolean, default: true },
+    
+    // ✅ NEW: Associated trainers
+    trainers: [
+      {
+        trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        joinedAt: { type: Date, default: Date.now },
+      }
+    ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Create geospatial index for location-based search
 gymSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Gym', gymSchema);

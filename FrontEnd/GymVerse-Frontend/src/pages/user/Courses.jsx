@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { courseService } from '../../services/courseService';
-import { VideoCameraIcon, PlayIcon, StarIcon } from '@heroicons/react/24/outline';
+import { VideoCameraIcon, PlayIcon, StarIcon, UserIcon } from '@heroicons/react/24/outline';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
@@ -70,7 +70,7 @@ const Courses = () => {
             onClick={() => setActiveTab('all')}
             className={`px-4 py-2 rounded-lg transition ${activeTab === 'all' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}
           >
-            All Courses
+            All Courses ({courses.length})
           </button>
           <button
             onClick={() => setActiveTab('enrolled')}
@@ -85,7 +85,10 @@ const Courses = () => {
           <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
             <VideoCameraIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No Courses Available</h3>
-            <p className="text-gray-400">Check back later for new fitness courses.</p>
+            <p className="text-gray-400">{activeTab === 'all' ? 'Check back later for new fitness courses.' : 'You haven\'t enrolled in any courses yet.'}</p>
+            {activeTab === 'enrolled' && (
+              <button onClick={() => setActiveTab('all')} className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700">Browse Courses</button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -100,7 +103,19 @@ const Courses = () => {
                 
                 <div className="p-4">
                   <h3 className="text-white font-bold text-lg mb-1">{course.title}</h3>
-                  <p className="text-gray-400 text-sm mb-2">By {course.trainerId?.name || 'Trainer'}</p>
+                  
+                  {/* Trainer Info with Profile Picture */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                      {course.trainerId?.profilePic ? (
+                        <img src={course.trainerId.profilePic} alt={course.trainerId?.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <span className="text-gray-400 text-xs">By {course.trainerId?.name || 'Trainer'}</span>
+                  </div>
+                  
                   <p className="text-gray-400 text-xs mb-3 line-clamp-2">{course.description}</p>
                   
                   <div className="flex items-center justify-between mb-4">

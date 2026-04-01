@@ -11,7 +11,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
 
-  // Load user on initial render
   useEffect(() => {
     if (token) {
       loadUser();
@@ -20,7 +19,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Load user profile
   const loadUser = async () => {
     try {
       const response = await api.get('/auth/me');
@@ -33,7 +31,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register user
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
@@ -52,7 +49,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login user
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -71,12 +67,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     toast.success('Logged out successfully');
+  };
+
+  // ✅ NEW: Update user function
+  const updateUser = (updatedUser) => {
+    setUser(prev => ({ ...prev, ...updatedUser }));
   };
 
   const value = {
@@ -86,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user,
   };
 

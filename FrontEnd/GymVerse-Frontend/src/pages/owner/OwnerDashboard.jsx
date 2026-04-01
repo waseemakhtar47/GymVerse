@@ -54,8 +54,7 @@ const OwnerDashboard = () => {
   };
 
   const handleDeleteGym = async (gymId, gymName) => {
-    if (!confirm(`Are you sure you want to delete "${gymName}"? This will also delete all memberships and data associated with this gym.`)) return;
-    
+    if (!confirm(`Are you sure you want to delete "${gymName}"?`)) return;
     try {
       await gymService.deleteGym(gymId);
       toast.success('Gym deleted successfully');
@@ -94,7 +93,6 @@ const OwnerDashboard = () => {
           }
         `}</style>
         
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {statCards.map((stat) => (
             <div key={stat.name} className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10 hover:scale-105 transition">
@@ -107,7 +105,6 @@ const OwnerDashboard = () => {
           ))}
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
             <h3 className="text-xl font-semibold text-white mb-4">Quick Actions</h3>
@@ -129,7 +126,6 @@ const OwnerDashboard = () => {
             </div>
           </div>
 
-          {/* Your Gyms Card with Actions */}
           <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
             <h3 className="text-xl font-semibold text-white mb-4">Your Gyms</h3>
             <div className="space-y-3 max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
@@ -142,12 +138,8 @@ const OwnerDashboard = () => {
                       <div className="flex-1 cursor-pointer" onClick={() => navigate(`/owner/memberships/${gym._id}`)}>
                         <p className="text-white font-medium">{gym.name}</p>
                         <p className="text-sm text-gray-400 truncate">{gym.address?.substring(0, 50)}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          🕒 {gym.timings?.open || '06:00'} - {gym.timings?.close || '22:00'}
-                        </p>
                       </div>
                       
-                      {/* Dropdown Menu Button */}
                       <div className="relative">
                         <button
                           onClick={() => setOpenMenuId(openMenuId === gym._id ? null : gym._id)}
@@ -156,7 +148,6 @@ const OwnerDashboard = () => {
                           <ChevronDownIcon className="w-5 h-5 text-gray-400" />
                         </button>
                         
-                        {/* Dropdown Menu */}
                         {openMenuId === gym._id && (
                           <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-white/10 rounded-lg shadow-xl z-10 overflow-hidden">
                             <button
@@ -168,6 +159,26 @@ const OwnerDashboard = () => {
                             >
                               <EyeIcon className="w-4 h-4" />
                               <span>View Members</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                navigate(`/owner/gym-applications/${gym._id}`);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
+                            >
+                              <UserGroupIcon className="w-4 h-4" />
+                              <span>View Applications</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                navigate(`/owner/gym-trainers/${gym._id}`);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
+                            >
+                              <UserGroupIcon className="w-4 h-4" />
+                              <span>View Trainers</span>
                             </button>
                             <button
                               onClick={() => {

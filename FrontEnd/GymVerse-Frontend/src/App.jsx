@@ -13,12 +13,18 @@ import MyMemberships from "./pages/user/MyMemberships";
 import Courses from "./pages/user/Courses";
 import CreateCourse from "./pages/trainer/CreateCourse";
 import MyCourses from "./pages/trainer/MyCourses";
+import Trainers from "./pages/user/Trainers";
+import Followers from "./pages/trainer/Followers";
 import ManageGyms from "./pages/owner/ManageGyms";
 import CreateGym from "./pages/owner/CreateGym";
 import EditGym from "./pages/owner/EditGym";
 import GymMemberships from "./pages/owner/GymMemberships";
-import Trainers from "./pages/user/Trainers";
-import Followers from "./pages/trainer/Followers";
+import AvailableGyms from "./pages/trainer/AvailableGyms";
+import MyApplications from "./pages/trainer/MyApplications";
+import GymApplications from "./pages/owner/GymApplications";
+import GymTrainers from "./pages/owner/GymTrainers";
+import OwnerTrainers from "./pages/owner/OwnerTrainers";
+import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -49,15 +55,8 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+
       {/* User Routes */}
-      <Route
-        path="/user/trainers"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <Trainers />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/user/dashboard"
         element={
@@ -66,6 +65,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/user/settings" element={<ProtectedRoute allowedRoles={['user']}><Settings /></ProtectedRoute>} />
       <Route
         path="/user/blogs"
         element={
@@ -98,6 +98,15 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/user/trainers"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <Trainers />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Trainer Routes */}
       <Route
         path="/trainer/dashboard"
@@ -107,6 +116,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/trainer/settings" element={<ProtectedRoute allowedRoles={['trainer']}><Settings /></ProtectedRoute>} />
       <Route
         path="/trainer/blogs"
         element={
@@ -147,6 +157,23 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/trainer/available-gyms"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <AvailableGyms />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trainer/my-applications"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <MyApplications />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Owner Routes */}
       <Route
         path="/owner/dashboard"
@@ -156,6 +183,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/owner/settings" element={<ProtectedRoute allowedRoles={['owner']}><Settings /></ProtectedRoute>} />
       <Route
         path="/owner/gyms"
         element={
@@ -185,6 +213,30 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["owner"]}>
             <GymMemberships />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/gym-applications/:gymId"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <GymApplications />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/gym-trainers/:gymId"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <GymTrainers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/trainers"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <OwnerTrainers />
           </ProtectedRoute>
         }
       />

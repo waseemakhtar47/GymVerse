@@ -1,4 +1,5 @@
 const Gym = require('../models/Gym');
+const User = require('../models/User');
 
 // Haversine formula to calculate distance between two points (in meters)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -161,6 +162,114 @@ const deleteGym = async (req, res) => {
   }
 };
 
+// ✅ NEW: Get gym applications (owner)
+const getGymApplications = async (req, res) => {
+  try {
+    const gym = await Gym.findById(req.params.id).populate('trainers.trainerId', 'name email profilePic phone');
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    const pendingApplications = gym.trainers.filter(t => t.status === 'pending');
+    res.json({ success: true, data: pendingApplications });
+  } catch (error) {
+    console.error('getGymApplications error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ NEW: Get gym trainers (approved)
+const getGymTrainers = async (req, res) => {
+  try {
+    const gym = await Gym.findById(req.params.id).populate('trainers.trainerId', 'name email profilePic phone');
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    const approvedTrainers = gym.trainers.filter(t => t.status === 'approved');
+    res.json({ success: true, data: approvedTrainers });
+  } catch (error) {
+    console.error('getGymTrainers error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ NEW: Approve trainer
+const approveTrainer = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    const trainerIndex = gym.trainers.findIndex(t => t.trainerId.toString() === trainerId);
+    if (trainerIndex === -1) return res.status(404).json({ success: false, message: 'Application not found' });
+    
+    gym.trainers[trainerIndex].status = 'approved';
+    gym.trainers[trainerIndex].joinedAt = new Date();
+    await gym.save();
+    
+    const trainer = await User.findById(trainerId);
+    const appIndex = trainer.appliedGyms.findIndex(a => a.gymId.toString() === id);
+    if (appIndex !== -1) trainer.appliedGyms[appIndex].status = 'approved';
+    trainer.associatedGym = id;
+    await trainer.save();
+    
+    res.json({ success: true, message: 'Trainer approved successfully' });
+  } catch (error) {
+    console.error('approveTrainer error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ NEW: Reject trainer
+const rejectTrainer = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    gym.trainers = gym.trainers.filter(t => t.trainerId.toString() !== trainerId);
+    await gym.save();
+    
+    const trainer = await User.findById(trainerId);
+    const appIndex = trainer.appliedGyms.findIndex(a => a.gymId.toString() === id);
+    if (appIndex !== -1) trainer.appliedGyms[appIndex].status = 'rejected';
+    await trainer.save();
+    
+    res.json({ success: true, message: 'Application rejected' });
+  } catch (error) {
+    console.error('rejectTrainer error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ NEW: Remove trainer from gym
+const removeTrainer = async (req, res) => {
+  try {
+    const { id, trainerId } = req.params;
+    const gym = await Gym.findById(id);
+    if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
+    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    gym.trainers = gym.trainers.filter(t => t.trainerId.toString() !== trainerId);
+    await gym.save();
+    
+    const trainer = await User.findById(trainerId);
+    trainer.associatedGym = null;
+    await trainer.save();
+    
+    res.json({ success: true, message: 'Trainer removed from gym' });
+  } catch (error) {
+    console.error('removeTrainer error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createGym,
   getGyms,
@@ -168,4 +277,9 @@ module.exports = {
   updateGym,
   deleteGym,
   getNearbyGyms,
+   getGymApplications,
+  getGymTrainers,
+  approveTrainer,
+  rejectTrainer,
+  removeTrainer,
 };

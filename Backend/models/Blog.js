@@ -9,23 +9,23 @@ const blogSchema = new mongoose.Schema(
     },
     title: {
       type: String,
-      required: [true, 'Please add a title'],
+      required: true,
       trim: true,
-      maxlength: [200, 'Title cannot be more than 200 characters'],
+      maxlength: 200,
     },
     content: {
       type: String,
-      required: [true, 'Please add content'],
+      required: true,
     },
     excerpt: {
       type: String,
-      maxlength: [500, 'Excerpt cannot be more than 500 characters'],
+      default: '',
+      maxlength: 500,
     },
     featuredImage: {
       type: String,
       default: '',
     },
-    images: [String],
     category: {
       type: String,
       enum: ['workout', 'nutrition', 'motivation', 'recovery', 'general'],
@@ -71,22 +71,9 @@ const blogSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: { virtuals: false },
+    toObject: { virtuals: false },
   }
 );
-
-// Virtual for like count
-blogSchema.virtual('likeCount').get(function() {
-  return this.likes.length;
-});
-
-// Virtual for comment count
-blogSchema.virtual('commentCount').get(function() {
-  return this.comments.length;
-});
-
-// Index for search
-blogSchema.index({ title: 'text', content: 'text', tags: 'text' });
 
 module.exports = mongoose.model('Blog', blogSchema);

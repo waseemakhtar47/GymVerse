@@ -28,7 +28,6 @@ const DashboardLayout = ({ children, title }) => {
     navigate('/');
   };
 
-  // Navigation items based on role
   const getNavItems = () => {
     const role = user?.role;
     
@@ -51,13 +50,15 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'Create Course', icon: PlusCircleIcon, path: '/trainer/create-course' },
         { name: 'My Blogs', icon: DocumentTextIcon, path: '/trainer/blogs' },
         { name: 'Create Blog', icon: PlusCircleIcon, path: '/trainer/create-blog' },
+        { name: 'Find Gym Jobs', icon: BuildingOfficeIcon, path: '/trainer/available-gyms' },
+        { name: 'My Applications', icon: DocumentTextIcon, path: '/trainer/my-applications' },
         { name: 'Earnings', icon: ChartBarIcon, path: '/trainer/earnings' },
         { name: 'Followers', icon: UserGroupIcon, path: '/trainer/followers' },
       ],
       owner: [
         { name: 'Manage Gyms', icon: BuildingOfficeIcon, path: '/owner/gyms' },
         { name: 'Create Gym', icon: PlusCircleIcon, path: '/owner/create-gym' },
-        { name: 'Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
+        { name: 'All Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
         { name: 'Revenue', icon: ChartBarIcon, path: '/owner/revenue' },
       ],
     };
@@ -117,13 +118,17 @@ const DashboardLayout = ({ children, title }) => {
           {/* User Info & Logout */}
           <div className="p-4 border-t border-white/10">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-linear-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </span>
+              <div className="w-10 h-10 rounded-full bg-linear-to-r from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                {user?.profilePic ? (
+                  <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-bold">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white">{user?.name}</p>
+                <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
                 <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
               </div>
             </div>
@@ -142,8 +147,19 @@ const DashboardLayout = ({ children, title }) => {
       <div className="lg:ml-64 min-h-screen">
         {/* Header */}
         <div className="bg-gray-900/50 backdrop-blur-lg border-b border-white/10 sticky top-0 z-30">
-          <div className="px-6 py-4">
+          <div className="px-6 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-white">{title}</h1>
+            <div className="lg:hidden">
+              <div className="w-8 h-8 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
+                {user?.profilePic ? (
+                  <img src={user.profilePic} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

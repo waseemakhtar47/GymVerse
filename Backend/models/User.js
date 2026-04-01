@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
@@ -22,54 +22,68 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "trainer", "owner"],
-      default: "user",
+      enum: ['user', 'trainer', 'owner'],
+      default: 'user',
     },
     profilePic: {
       type: String,
-      default: "",
+      default: '',
     },
     phone: {
       type: String,
-      default: "",
+      default: '',
     },
     address: {
       type: String,
-      default: "",
+      default: '',
+    },
+    bio: {
+      type: String,
+      default: '',
+    },
+    specialty: {
+      type: String,
+      default: '',
+    },
+    experience: {
+      type: String,
+      default: '',
+    },
+    businessName: {
+      type: String,
+      default: '',
+    },
+    gstNumber: {
+      type: String,
+      default: '',
     },
     isActive: {
       type: Boolean,
       default: true,
     },
-    following: [
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    appliedGyms: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
+        gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym' },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        appliedAt: { type: Date, default: Date.now },
+      }
     ],
-    followers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    associatedGym: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', default: null },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true }
 );
 
-// Simple working pre-save hook
-userSchema.pre("save", async function () {
-  if (this.isModified("password")) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-  }
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Match password method
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model('User', userSchema);
