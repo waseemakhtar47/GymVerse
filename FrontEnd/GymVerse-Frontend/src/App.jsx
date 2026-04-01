@@ -28,6 +28,8 @@ import Settings from "./pages/Settings";
 import TrainerProfile from "./pages/TrainerProfile";
 import MyRequests from "./pages/trainer/MyRequests";
 import GymSentRequests from "./pages/owner/GymSentRequests";
+import AllTrainerRequests from "./pages/owner/AllTrainerRequests";
+import AllSentRequests from "./pages/owner/AllSentRequests";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -206,6 +208,22 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["owner"]}>
             <OwnerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/sent-requests"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <AllSentRequests />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/trainer-requests"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <AllTrainerRequests />
           </ProtectedRoute>
         }
       />

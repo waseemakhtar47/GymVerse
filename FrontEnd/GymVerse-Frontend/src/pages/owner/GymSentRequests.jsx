@@ -50,7 +50,7 @@ const GymSentRequests = () => {
   if (loading) {
     return (
       <DashboardLayout title="Sent Hiring Requests" role="owner">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading requests...</p>
@@ -80,7 +80,7 @@ const GymSentRequests = () => {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
                         {req.trainerId?.profilePic ? (
                           <img src={req.trainerId.profilePic} alt="" className="w-full h-full object-cover" />
                         ) : (
