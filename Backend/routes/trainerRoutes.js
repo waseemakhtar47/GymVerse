@@ -14,6 +14,8 @@ const {
   getMyRequests,
   updateRequestStatus,
   getMyGyms,
+  leaveGym,
+  getApprovedGymIds,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -23,6 +25,8 @@ const router = express.Router();
 router.get('/', getAllTrainers);
 
 // Trainer specific
+router.get('/approved-gym-ids', protect, authorize('trainer'), getApprovedGymIds);
+router.delete('/leave-gym/:gymId', protect, authorize('trainer'), leaveGym);
 router.get('/my-gyms', protect, authorize('trainer'), getMyGyms);
 router.get('/following', protect, authorize('user'), getFollowingTrainers);
 router.get('/my/followers', protect, authorize('trainer'), getMyFollowers);

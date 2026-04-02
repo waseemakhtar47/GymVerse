@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { gymService } from '../../services/gymService';
 import { membershipService } from '../../services/membershipService';
@@ -12,11 +13,15 @@ import {
   ClockIcon,
   PhoneIcon,
   StarIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  EyeIcon,
+  CheckCircleIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const GymDiscovery = () => {
+  const navigate = useNavigate();  // ✅ Add this
   const [gyms, setGyms] = useState([]);
   const [filteredGyms, setFilteredGyms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,12 +41,14 @@ const GymDiscovery = () => {
   const [selectedGymForMembership, setSelectedGymForMembership] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [buying, setBuying] = useState(false);
+  const [userMemberships, setUserMemberships] = useState([]);
   
   const locationSearchRef = useRef(null);
   const gymSearchRef = useRef(null);
 
   useEffect(() => {
     fetchAllGyms();
+    fetchUserMemberships();
   }, []);
 
   useEffect(() => {
@@ -79,6 +86,15 @@ const GymDiscovery = () => {
       console.error('Error fetching gyms:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserMemberships = async () => {
+    try {
+      const res = await membershipService.getMyMemberships();
+      setUserMemberships(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch memberships:', error);
     }
   };
 
@@ -182,7 +198,15 @@ const GymDiscovery = () => {
     }
   };
 
+  const hasActiveMembership = (gymId) => {
+    return userMemberships.some(m => m.gymId?._id === gymId && m.status === 'active');
+  };
+
   const handleBuyMembership = (gym) => {
+    if (hasActiveMembership(gym._id)) {
+      toast.error('You already have an active membership in this gym');
+      return;
+    }
     setSelectedGymForMembership(gym);
     setShowBuyModal(true);
   };
@@ -199,6 +223,7 @@ const GymDiscovery = () => {
       toast.success('Membership purchased successfully!');
       setShowBuyModal(false);
       setSelectedGymForMembership(null);
+      fetchUserMemberships();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to purchase membership');
     } finally {
@@ -213,6 +238,10 @@ const GymDiscovery = () => {
       case 'yearly': return { name: 'Yearly', price: '$499', duration: '12 months' };
       default: return { name: 'Unknown', price: '$0', duration: 'Unknown' };
     }
+  };
+
+  const handleViewDetails = (gym) => {
+    navigate(`/gym-details/${gym._id}`);
   };
 
   const handleReset = () => {
@@ -384,49 +413,69 @@ const GymDiscovery = () => {
                   <button onClick={handleReset} className="mt-3 text-purple-400 text-sm hover:text-purple-300">Clear search</button>
                 </div>
               ) : (
-                filteredGyms.map((gym) => (
-                  <div
-                    key={gym._id}
-                    id={`gym-${gym._id}`}
-                    onClick={() => handleGymSelect(gym)}
-                    className={`p-4 border-b border-white/10 cursor-pointer transition-all hover:bg-white/10 ${
-                      selectedGym?._id === gym._id ? 'bg-purple-600/20 border-l-4 border-l-purple-500' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium text-base">{gym.name}</h4>
-                        <div className="flex items-center gap-1 mt-1">
-                          <StarIcon className="w-3 h-3 text-yellow-500" />
-                          <span className="text-gray-400 text-xs">4.8</span>
-                          <span className="text-gray-500 text-xs ml-1">(120 reviews)</span>
-                        </div>
-                        <p className="text-gray-400 text-xs mt-2 line-clamp-2">{gym.address}</p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                          {gym.timings?.open && <span className="flex items-center gap-1"><ClockIcon className="w-3 h-3" />{gym.timings.open} - {gym.timings.close}</span>}
-                          {gym.contactNumber && <span className="flex items-center gap-1"><PhoneIcon className="w-3 h-3" />{gym.contactNumber}</span>}
-                        </div>
-                        {gym.facilities && gym.facilities.length > 0 && (
+                filteredGyms.map((gym) => {
+                  const hasMembership = hasActiveMembership(gym._id);
+                  
+                  return (
+                    <div
+                      key={gym._id}
+                      id={`gym-${gym._id}`}
+                      onClick={() => handleGymSelect(gym)}
+                      className={`p-4 border-b border-white/10 cursor-pointer transition-all hover:bg-white/10 ${
+                        selectedGym?._id === gym._id ? 'bg-purple-600/20 border-l-4 border-l-purple-500' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="text-white font-medium text-base">{gym.name}</h4>
+                          <div className="flex items-center gap-1 mt-1">
+                            <StarIcon className="w-3 h-3 text-yellow-500" />
+                            <span className="text-gray-400 text-xs">4.8</span>
+                            <span className="text-gray-500 text-xs ml-1">(120 reviews)</span>
+                          </div>
+                          <p className="text-gray-400 text-xs mt-2 line-clamp-2">{gym.address}</p>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                            {gym.timings?.open && <span className="flex items-center gap-1"><ClockIcon className="w-3 h-3" />{gym.timings.open} - {gym.timings.close}</span>}
+                            {gym.contactNumber && <span className="flex items-center gap-1"><PhoneIcon className="w-3 h-3" />{gym.contactNumber}</span>}
+                          </div>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {gym.facilities.slice(0, 3).map((fac, idx) => (
+                            {gym.facilities?.slice(0, 3).map((fac, idx) => (
                               <span key={idx} className="px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-gray-400">{fac}</span>
                             ))}
                           </div>
-                        )}
-                      </div>
-                      <div className="ml-3">
-                        {/* ✅ Buy Membership Button */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleBuyMembership(gym); }}
-                          className="px-3 py-1 bg-green-600 rounded-lg text-white text-xs hover:bg-green-700 transition flex items-center gap-1"
-                        >
-                          <CreditCardIcon className="w-3 h-3" />
-                          Buy
-                        </button>
+                          <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
+                            <UserIcon className="w-3 h-3" />
+                            <span>Owner: {gym.ownerId?.name || 'Unknown'}</span>
+                          </div>
+                        </div>
+                        <div className="ml-3 flex flex-col gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleViewDetails(gym); }}
+                            className="px-3 py-1 bg-blue-600 rounded-lg text-white text-xs hover:bg-blue-700 transition flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <EyeIcon className="w-3 h-3" />
+                            Details
+                          </button>
+                          
+                          {hasMembership ? (
+                            <span className="px-3 py-1 rounded-full text-xs bg-green-500/20 text-green-400 flex items-center gap-1 whitespace-nowrap">
+                              <CheckCircleIcon className="w-3 h-3" />
+                              Active
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleBuyMembership(gym); }}
+                              className="px-3 py-1 bg-green-600 rounded-lg text-white text-xs hover:bg-green-700 transition flex items-center gap-1 whitespace-nowrap"
+                            >
+                              <CreditCardIcon className="w-3 h-3" />
+                              Buy
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -463,6 +512,7 @@ const GymDiscovery = () => {
                 <div>
                   <p className="text-gray-400 text-sm">Gym</p>
                   <p className="text-white font-semibold">{selectedGymForMembership.name}</p>
+                  <p className="text-gray-500 text-xs">Owner: {selectedGymForMembership.ownerId?.name}</p>
                 </div>
               </div>
               

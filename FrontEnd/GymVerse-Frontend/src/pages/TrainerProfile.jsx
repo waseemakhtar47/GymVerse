@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { trainerService } from '../services/trainerService';
 import { gymService } from '../services/gymService';
+import { chatService } from '../services/chatService';
 import { 
   UserIcon, 
   VideoCameraIcon, 
@@ -11,7 +12,8 @@ import {
   BriefcaseIcon,
   MapPinIcon,
   PhoneIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -63,36 +65,43 @@ const TrainerProfile = () => {
     }
   };
 
-const handleHire = async () => {
-  if (!selectedGym) {
-    toast.error('Please select a gym');
-    return;
-  }
-  
-  setHiring(true);
-  try {
-    await trainerService.applyToGym(selectedGym, trainer._id);
-    toast.success(`Hiring request sent to ${trainer?.name}!`);
-    setSelectedGym('');
-  } catch (error) {
-    const errorMsg = error.response?.data?.message;
-    if (errorMsg === 'Hiring request already sent to this trainer. Waiting for response.') {
-      toast.error('Hiring request already sent. Waiting for trainer response.');
-    } else if (errorMsg === 'Trainer has already rejected your request. Cannot send again.') {
-      toast.error('Trainer has already rejected your request.');
-    } else if (errorMsg === 'Trainer is already associated with this gym') {
-      toast.error(`${trainer?.name} is already a trainer at this gym`);
-    } else if (errorMsg === 'Hiring request already pending for this trainer') {
-      toast.error('Request already pending for this trainer');
-    } else if (errorMsg === 'Trainer is already working at this gym') {
-      toast.error(`${trainer?.name} is already working at this gym`);
-    } else {
-      toast.error(errorMsg || 'Failed to send hiring request');
+  const handleHire = async () => {
+    if (!selectedGym) {
+      toast.error('Please select a gym');
+      return;
     }
-  } finally {
-    setHiring(false);
-  }
-};
+    
+    setHiring(true);
+    try {
+      await trainerService.applyToGym(selectedGym, trainer._id);
+      toast.success(`Hiring request sent to ${trainer?.name}!`);
+      setSelectedGym('');
+    } catch (error) {
+      const errorMsg = error.response?.data?.message;
+      if (errorMsg === 'Hiring request already sent to this trainer. Waiting for response.') {
+        toast.error('Hiring request already sent. Waiting for trainer response.');
+      } else if (errorMsg === 'Trainer has already rejected your request. Cannot send again.') {
+        toast.error('Trainer has already rejected your request.');
+      } else if (errorMsg === 'Trainer is already associated with this gym') {
+        toast.error(`${trainer?.name} is already a trainer at this gym`);
+      } else {
+        toast.error(errorMsg || 'Failed to send hiring request');
+      }
+    } finally {
+      setHiring(false);
+    }
+  };
+
+  const handleStartChat = async () => {
+    try {
+      const res = await chatService.getOrCreateChat(trainer._id);
+      const chatId = res.data.data._id;
+      navigate(`/${user?.role}/chat?chatId=${chatId}`);
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      toast.error('Failed to start chat');
+    }
+  };
 
   if (loading) {
     return (
@@ -126,7 +135,7 @@ const handleHire = async () => {
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-32 h-32 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
               {trainer.profilePic ? (
                 <img src={trainer.profilePic} alt={trainer.name} className="w-full h-full object-cover" />
               ) : (
@@ -173,31 +182,49 @@ const handleHire = async () => {
               </div>
             </div>
             
-            {user?.role === 'owner' && (
-              <div className="md:text-right">
-                <div className="bg-white/10 rounded-lg p-4 mb-3">
-                  <label className="text-gray-400 text-sm block mb-2">Select Gym to Hire</label>
-                  <select
-                    value={selectedGym}
-                    onChange={(e) => setSelectedGym(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/50 rounded-lg text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    <option value="">Select a gym...</option>
-                    {gyms.map(gym => (
-                      <option key={gym._id} value={gym._id}>{gym.name}</option>
-                    ))}
-                  </select>
-                </div>
+            {/* ✅ MESSAGE BUTTON - RIGHT SIDE */}
+            <div className="md:text-right">
+              {user?.role === 'user' && (
                 <button
-                  onClick={handleHire}
-                  disabled={!selectedGym || hiring}
-                  className="w-full md:w-auto px-6 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={handleStartChat}
+                  className="w-full md:w-auto px-6 py-2 bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition flex items-center justify-center gap-2"
                 >
-                  <BriefcaseIcon className="w-4 h-4" />
-                  {hiring ? 'Sending...' : 'Send Hiring Request'}
+                  <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                  Message
                 </button>
-              </div>
-            )}
+              )}
+              
+              {user?.role === 'owner' && (
+                <>
+                  <div className="bg-white/10 rounded-lg p-4 mb-3">
+                    <label className="text-gray-400 text-sm block mb-2">Select Your Gym to Hire</label>
+                    <select
+                      value={selectedGym}
+                      onChange={(e) => setSelectedGym(e.target.value)}
+                      className="w-full px-3 py-2 bg-black/50 rounded-lg text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select a gym...</option>
+                      {gyms.map(gym => (
+                        <option key={gym._id} value={gym._id}>{gym.name}</option>
+                      ))}
+                    </select>
+                    {gyms.length === 0 && (
+                      <p className="text-yellow-400 text-xs mt-2">
+                        You don't have any gyms yet. <button onClick={() => navigate('/owner/create-gym')} className="text-purple-400 underline">Create one</button>
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleHire}
+                    disabled={!selectedGym || hiring || gyms.length === 0}
+                    className="w-full py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <BriefcaseIcon className="w-4 h-4" />
+                    {hiring ? 'Sending...' : 'Send Hiring Request'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

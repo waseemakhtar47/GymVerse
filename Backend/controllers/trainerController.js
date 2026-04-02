@@ -542,11 +542,61 @@ const getMyGyms = async (req, res) => {
       })
       .filter(gym => gym !== null);
     
-    console.log(`📍 Trainer ${req.user.name} is associated with ${approvedGyms.length} gyms`);
-    
     res.json({ success: true, data: approvedGyms });
   } catch (error) {
     console.error('getMyGyms error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Trainer leaves a gym (removes association)
+const leaveGym = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    const trainerId = req.user.id;
+    
+    const gym = await Gym.findById(gymId);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    const trainer = await User.findById(trainerId);
+    if (!trainer) {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    // Remove from gym's trainers list
+    gym.trainers = gym.trainers.filter(t => t.trainerId.toString() !== trainerId);
+    await gym.save();
+    
+    // Remove from trainer's appliedGyms
+    trainer.appliedGyms = trainer.appliedGyms.filter(a => a.gymId.toString() !== gymId);
+    
+    // Remove associated gym if it matches
+    if (trainer.associatedGym?.toString() === gymId) {
+      trainer.associatedGym = null;
+    }
+    await trainer.save();
+    
+    res.json({ success: true, message: 'Successfully left the gym' });
+  } catch (error) {
+    console.error('leaveGym error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get all approved gym IDs for trainer (for status check)
+const getApprovedGymIds = async (req, res) => {
+  try {
+    const trainer = await User.findById(req.user.id);
+    
+    const approvedGymIds = trainer.appliedGyms
+      .filter(app => app.status === 'approved')
+      .map(app => app.gymId.toString());
+    
+    res.json({ success: true, data: approvedGymIds });
+  } catch (error) {
+    console.error('getApprovedGymIds error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -564,6 +614,7 @@ module.exports = {
   getTrainerBlogs,
   getAvailableGyms,
   applyToGym,
+  leaveGym,
   getMyApplications,
   getMyRequests,
   updateRequestStatus,
@@ -571,4 +622,5 @@ module.exports = {
   getGymSentRequests,
   updateApplicationStatus,
   cancelSentRequest,
+  getApprovedGymIds,
 };

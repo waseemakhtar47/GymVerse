@@ -31,6 +31,8 @@ import GymSentRequests from "./pages/owner/GymSentRequests";
 import AllTrainerRequests from "./pages/owner/AllTrainerRequests";
 import AllSentRequests from "./pages/owner/AllSentRequests";
 import MyGyms from "./pages/trainer/MyGyms";
+import GymDetails from "./pages/GymDetails";
+import Chat from "./pages/Chat";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -62,6 +64,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
+      <Route path="/gym-details/:id" element={<GymDetails />} />
 
       {/* User Routes */}
       <Route
@@ -69,6 +72,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["user"]}>
             <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/chat"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <Chat />
           </ProtectedRoute>
         }
       />
@@ -127,6 +138,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["trainer"]}>
             <TrainerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trainer/chat"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <Chat />
           </ProtectedRoute>
         }
       />
@@ -217,6 +236,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["owner"]}>
             <OwnerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/owner/chat"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <Chat />
           </ProtectedRoute>
         }
       />

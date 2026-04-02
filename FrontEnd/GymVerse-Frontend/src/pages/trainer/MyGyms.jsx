@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { trainerService } from '../../services/trainerService';
+import { gymService } from '../../services/gymService';
 import { 
   BuildingOfficeIcon, 
   MapPinIcon, 
   ClockIcon, 
   PhoneIcon,
   CheckCircleIcon,
-  UserPlusIcon
+  UserPlusIcon,
+  ArrowRightCircleIcon,
+  EyeIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -16,6 +20,7 @@ const MyGyms = () => {
   const navigate = useNavigate();
   const [gyms, setGyms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [leavingGym, setLeavingGym] = useState(null);
 
   useEffect(() => {
     fetchMyGyms();
@@ -31,6 +36,23 @@ const MyGyms = () => {
       toast.error('Failed to load gyms');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLeaveGym = async (gymId, gymName) => {
+    if (!confirm(`Are you sure you want to leave "${gymName}"? You will no longer be associated with this gym.`)) {
+      return;
+    }
+    
+    setLeavingGym(gymId);
+    try {
+      await trainerService.leaveGym(gymId);
+      toast.success(`You have left ${gymName}`);
+      setGyms(prev => prev.filter(g => g._id !== gymId));
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to leave gym');
+    } finally {
+      setLeavingGym(null);
     }
   };
 
@@ -135,6 +157,12 @@ const MyGyms = () => {
                     </div>
                   )}
                   
+                  {/* ✅ Owner Name Added */}
+                  <div className="flex items-center gap-1 mt-2 text-xs text-gray-500 mb-2">
+                    <UserIcon className="w-3 h-3" />
+                    <span>Owner: {gym.ownerId?.name || 'Unknown'}</span>
+                  </div>
+                  
                   <div className="flex items-center gap-2 text-gray-500 text-xs mb-4">
                     <CheckCircleIcon className="w-3 h-3 text-green-400" />
                     <span>Associated since: {new Date(gym.joinedAt).toLocaleDateString()}</span>
@@ -156,12 +184,23 @@ const MyGyms = () => {
                     </div>
                   )}
                   
-                  <button
-                    onClick={() => navigate(`/user/gyms`)}
-                    className="w-full py-2 border border-purple-500 rounded-lg text-purple-400 text-sm hover:bg-purple-500/10 transition"
-                  >
-                    View Gym Details
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/gym-details/${gym._id}`)}
+                      className="flex-1 py-2 border border-purple-500 rounded-lg text-purple-400 text-sm hover:bg-purple-500/10 transition flex items-center justify-center gap-1"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      View Details
+                    </button>
+                    <button
+                      onClick={() => handleLeaveGym(gym._id, gym.name)}
+                      disabled={leavingGym === gym._id}
+                      className="flex-1 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center justify-center gap-1"
+                    >
+                      <ArrowRightCircleIcon className="w-4 h-4" />
+                      {leavingGym === gym._id ? 'Leaving...' : 'Leave Gym'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

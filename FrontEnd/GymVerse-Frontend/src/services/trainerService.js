@@ -13,6 +13,8 @@ export const trainerService = {
   getMyApplications: () => api.get("/trainers/my-applications"),
   getMyRequests: () => api.get("/trainers/my-requests"),
   getMyGyms: () => api.get("/trainers/my-gyms"),
+  leaveGym: (gymId) => api.delete(`/trainers/leave-gym/${gymId}`),
+  getApprovedGymIds: () => api.get('/trainers/approved-gym-ids'),
   updateRequestStatus: (requestId, status) =>
     api.put(`/trainers/requests/${requestId}`, { status }),
   applyToGym: (gymId, trainerId) => {

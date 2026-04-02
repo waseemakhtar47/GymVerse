@@ -1,15 +1,29 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 
 dotenv.config();
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+  allowEIO3: true,
+  transports: ['websocket', 'polling'],
+});
 
-// ✅ Increase payload limit for large images (50MB)
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true,
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -21,12 +35,133 @@ app.use('/api/memberships', require('./routes/membershipRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
 app.use('/api/trainers', require('./routes/trainerRoutes'));
+app.use('/api/chats', require('./routes/chatRoutes'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Gym Verse API Running 🚀' });
 });
 
+// Socket.io connection
+const userSockets = new Map();
+
+io.on('connection', (socket) => {
+  console.log('✅ New client connected:', socket.id);
+  
+  // Register user
+  socket.on('register-user', (userId) => {
+    if (userId) {
+      userSockets.set(userId, socket.id);
+      console.log(`📍 User ${userId} registered with socket ${socket.id}`);
+      io.emit('online-users', Array.from(userSockets.keys()));
+    }
+  });
+  
+  // Join chat room
+  socket.on('join-chat', (chatId) => {
+    if (chatId) {
+      socket.join(`chat_${chatId}`);
+      console.log(`📌 Socket ${socket.id} joined chat ${chatId}`);
+    }
+  });
+  
+  // Send message
+  socket.on('send-message', async (data) => {
+    const { chatId, senderId, receiverId, message } = data;
+    console.log(`💬 Message from ${senderId} to ${receiverId}: ${message}`);
+    
+    // Save to database
+    try {
+      const Chat = require('./models/Chat');
+      const chat = await Chat.findById(chatId);
+      if (chat) {
+        const newMessage = {
+          senderId,
+          receiverId,
+          message,
+          read: false,
+        };
+        chat.messages.push(newMessage);
+        chat.lastMessage = message;
+        chat.lastMessageTime = new Date();
+        
+        const currentUnread = chat.unreadCount?.get(receiverId) || 0;
+        if (!chat.unreadCount) chat.unreadCount = new Map();
+        chat.unreadCount.set(receiverId, currentUnread + 1);
+        
+        await chat.save();
+        
+        // Emit to receiver if online
+        const receiverSocketId = userSockets.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('new-message', {
+            chatId,
+            message: {
+              ...newMessage,
+              _id: chat.messages[chat.messages.length - 1]._id,
+              createdAt: new Date(),
+              senderId: { _id: senderId },
+              receiverId: { _id: receiverId },
+            },
+          });
+        }
+        
+        // Emit to sender's room
+        io.to(`chat_${chatId}`).emit('message-sent', {
+          chatId,
+          message: newMessage,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Socket message error:', error);
+    }
+  });
+  
+  // Mark messages as read
+  socket.on('mark-read', async (data) => {
+    const { chatId, userId } = data;
+    try {
+      const Chat = require('./models/Chat');
+      const chat = await Chat.findById(chatId);
+      if (chat) {
+        let updated = false;
+        chat.messages.forEach(msg => {
+          if (msg.receiverId && msg.receiverId.toString() === userId && !msg.read) {
+            msg.read = true;
+            msg.readAt = new Date();
+            updated = true;
+          }
+        });
+        if (updated) {
+          if (chat.unreadCount) {
+            chat.unreadCount.set(userId, 0);
+          }
+          await chat.save();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Mark read error:', error);
+    }
+  });
+  
+  // Disconnect
+  socket.on('disconnect', () => {
+    let disconnectedUser = null;
+    for (const [userId, socketId] of userSockets.entries()) {
+      if (socketId === socket.id) {
+        disconnectedUser = userId;
+        userSockets.delete(userId);
+        break;
+      }
+    }
+    if (disconnectedUser) {
+      io.emit('online-users', Array.from(userSockets.keys()));
+    }
+    console.log('❌ Client disconnected:', socket.id);
+  });
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Socket.io ready`);
 });
