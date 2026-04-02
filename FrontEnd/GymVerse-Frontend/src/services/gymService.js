@@ -9,6 +9,7 @@ export const gymService = {
   getNearbyGyms: (lng, lat, maxDistance = 5000) => api.get(`/gyms/nearby?lng=${lng}&lat=${lat}&maxDistance=${maxDistance}`),
   
   // ✅ NEW: Owner trainer management functions
+   getOwnerGyms: () => api.get('/gyms/owner/gyms'),
   getGymApplications: (gymId) => api.get(`/gyms/${gymId}/applications`),
   getGymTrainers: (gymId) => api.get(`/gyms/${gymId}/trainers`),
   approveTrainer: (gymId, trainerId) => api.put(`/gyms/${gymId}/trainers/${trainerId}/approve`),

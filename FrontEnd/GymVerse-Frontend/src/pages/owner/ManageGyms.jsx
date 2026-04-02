@@ -27,7 +27,7 @@ const ManageGyms = () => {
   const fetchGyms = async () => {
     setLoading(true);
     try {
-      const res = await gymService.getAllGyms();
+      const res = await gymService.getOwnerGyms();
       setGyms(res.data.data || []);
     } catch (error) {
       console.error("Failed to fetch gyms:", error);

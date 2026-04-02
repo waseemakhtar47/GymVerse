@@ -2,32 +2,34 @@ const express = require('express');
 const {
   createGym,
   getGyms,
+  getOwnerGyms,
   getGymById,
   updateGym,
   deleteGym,
   getNearbyGyms,
   getGymApplications,
   getGymSentRequests,
+  getGymTrainers,
   updateApplicationStatus,
   cancelSentRequest,
-  getGymTrainers,
   removeTrainer,
 } = require('../controllers/gymController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Public routes
-router.get('/', getGyms);
+// ============== PUBLIC ROUTES (No authentication) ==============
+router.get('/', getGyms);  // All gyms for users
 router.get('/nearby', getNearbyGyms);
 router.get('/:id', getGymById);
 
-// Protected routes (owner only)
+// ============== OWNER ROUTES (Authentication + Owner role) ==============
+router.get('/owner/gyms', protect, authorize('owner'), getOwnerGyms);
 router.post('/', protect, authorize('owner'), createGym);
 router.put('/:id', protect, authorize('owner'), updateGym);
 router.delete('/:id', protect, authorize('owner'), deleteGym);
 
-// ✅ Trainer management routes (Owner only)
+// ============== TRAINER MANAGEMENT ROUTES (Owner only) ==============
 router.get('/:id/applications', protect, authorize('owner'), getGymApplications);
 router.get('/:id/sent-requests', protect, authorize('owner'), getGymSentRequests);
 router.get('/:id/trainers', protect, authorize('owner'), getGymTrainers);

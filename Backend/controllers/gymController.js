@@ -42,9 +42,19 @@ const createGym = async (req, res) => {
 };
 
 // @desc    Get all gyms
+// @desc    Get all gyms (public - for users) OR get owner's gyms (for owner)
 const getGyms = async (req, res) => {
   try {
-    const gyms = await Gym.find({ isActive: true }).populate('ownerId', 'name email');
+    let query = { isActive: true };
+    
+    // ✅ If logged-in user is owner, show only their gyms
+    if (req.user && req.user.role === 'owner') {
+      query.ownerId = req.user.id;
+    }
+    
+    const gyms = await Gym.find(query).populate('ownerId', 'name email');
+    console.log(`📍 Found ${gyms.length} gyms for ${req.user?.role || 'public'}`);
+    
     res.json({ success: true, data: gyms });
   } catch (error) {
     console.error('getGyms error:', error);
@@ -420,9 +430,28 @@ const removeTrainer = async (req, res) => {
   }
 };
 
+// @desc    Get owner's own gyms (for owner dashboard)
+const getOwnerGyms = async (req, res) => {
+  try {
+    // ✅ Only return gyms where ownerId matches logged-in user
+    const gyms = await Gym.find({ 
+      ownerId: req.user.id,
+      isActive: true 
+    }).populate('ownerId', 'name email');
+    
+    console.log(`📍 Owner ${req.user.name} has ${gyms.length} gyms`);
+    
+    res.json({ success: true, data: gyms });
+  } catch (error) {
+    console.error('getOwnerGyms error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createGym,
   getGyms,
+  getOwnerGyms,
   getGymById,
   updateGym,
   deleteGym,

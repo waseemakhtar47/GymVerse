@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 
 const AllSentRequests = () => {
   const navigate = useNavigate();
-  const [gyms, setGyms] = useState([]);
   const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
@@ -19,14 +18,14 @@ const AllSentRequests = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // First get all gyms
-      const gymsRes = await gymService.getAllGyms();
-      const allGyms = gymsRes.data.data || [];
-      setGyms(allGyms);
+      // ✅ Pehle owner ke apne gyms fetch karo
+      const gymsRes = await gymService.getOwnerGyms();
+      const ownerGyms = gymsRes.data.data || [];
       
-      // Then fetch sent requests for each gym
+      
+      // ✅ Sirf owner ke apne gyms ke sent requests fetch karo
       const requests = [];
-      for (const gym of allGyms) {
+      for (const gym of ownerGyms) {
         try {
           const reqsRes = await gymService.getGymSentRequests(gym._id);
           const gymReqs = reqsRes.data.data || [];
@@ -39,6 +38,10 @@ const AllSentRequests = () => {
           });
         } catch (error) {
           console.error(`Failed to fetch sent requests for gym ${gym._id}:`, error);
+          // Agar 403 aata hai toh skip karo (yeh gym owner ki nahi hai)
+          if (error.response?.status === 403) {
+            console.log(`Skipping gym ${gym._id} - not authorized`);
+          }
         }
       }
       setAllRequests(requests);
@@ -55,7 +58,6 @@ const AllSentRequests = () => {
     try {
       await gymService.cancelSentRequest(gymId, trainerId);
       toast.success('Request cancelled successfully');
-      // Refresh data
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to cancel request');

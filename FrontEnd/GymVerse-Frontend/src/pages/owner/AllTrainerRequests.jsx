@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 
 const AllTrainerRequests = () => {
   const navigate = useNavigate();
-  const [gyms, setGyms] = useState([]);
   const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
@@ -19,14 +18,14 @@ const AllTrainerRequests = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // First get all gyms
-      const gymsRes = await gymService.getAllGyms();
-      const allGyms = gymsRes.data.data || [];
-      setGyms(allGyms);
+      // ✅ Pehle owner ke apne gyms fetch karo
+      const gymsRes = await gymService.getOwnerGyms();
+      const ownerGyms = gymsRes.data.data || [];
       
-      // Then fetch applications for each gym
+      
+      // ✅ Sirf owner ke apne gyms ke applications fetch karo
       const requests = [];
-      for (const gym of allGyms) {
+      for (const gym of ownerGyms) {
         try {
           const appsRes = await gymService.getGymApplications(gym._id);
           const gymApps = appsRes.data.data || [];
@@ -39,6 +38,10 @@ const AllTrainerRequests = () => {
           });
         } catch (error) {
           console.error(`Failed to fetch apps for gym ${gym._id}:`, error);
+          // Agar 403 aata hai toh skip karo (yeh gym owner ki nahi hai)
+          if (error.response?.status === 403) {
+            console.log(`Skipping gym ${gym._id} - not authorized`);
+          }
         }
       }
       setAllRequests(requests);
@@ -81,8 +84,8 @@ const AllTrainerRequests = () => {
     <DashboardLayout title="Trainer Requests" role="owner">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-white">Pending Trainer Applications</h2>
-          <p className="text-gray-400 text-sm mt-1">Review and respond to trainer job applications</p>
+          <h2 className="text-2xl font-bold text-white">Trainer Applications</h2>
+          <p className="text-gray-400 text-sm mt-1">Trainers who have applied to your gyms</p>
         </div>
 
         {allRequests.length === 0 ? (
@@ -90,6 +93,12 @@ const AllTrainerRequests = () => {
             <UserIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No Pending Requests</h3>
             <p className="text-gray-400">No trainers have applied to your gyms yet.</p>
+            <button
+              onClick={() => navigate('/owner/gyms')}
+              className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700"
+            >
+              View Your Gyms
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

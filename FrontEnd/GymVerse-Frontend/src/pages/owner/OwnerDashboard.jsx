@@ -35,7 +35,8 @@ const OwnerDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const gymsRes = await gymService.getAllGyms();
+      // ✅ Use getOwnerGyms instead of getAllGyms
+      const gymsRes = await gymService.getOwnerGyms();
       const allGyms = gymsRes.data.data || [];
       setGyms(allGyms.slice(0, 3));
 
@@ -217,17 +218,7 @@ const OwnerDashboard = () => {
                               className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
                             >
                               <UserGroupIcon className="w-4 h-4" />
-                              <span>Trainer Applications</span>
-                            </button>
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                navigate(`/owner/gym-sent-requests/${gym._id}`);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
-                            >
-                              <UserGroupIcon className="w-4 h-4" />
-                              <span>Sent Requests</span>
+                              <span>Applications</span>
                             </button>
                             <button
                               onClick={() => {
@@ -237,7 +228,7 @@ const OwnerDashboard = () => {
                               className="w-full flex items-center gap-3 px-4 py-2 text-left text-gray-300 hover:bg-white/10 transition"
                             >
                               <UserGroupIcon className="w-4 h-4" />
-                              <span>View Trainers</span>
+                              <span>Trainers</span>
                             </button>
                             <button
                               onClick={() => {

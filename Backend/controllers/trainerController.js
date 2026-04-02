@@ -353,8 +353,6 @@ const updateRequestStatus = async (req, res) => {
     }
     
     const gymId = request.gymId;
-    
-    // Update status
     request.status = status;
     await trainer.save();
     
@@ -371,7 +369,6 @@ const updateRequestStatus = async (req, res) => {
       }
     }
     
-    // Update associated gym
     if (status === 'approved') {
       trainer.associatedGym = gymId;
       await trainer.save();
@@ -521,11 +518,46 @@ const cancelSentRequest = async (req, res) => {
   }
 };
 
+// @desc    Get trainer's associated gyms (where approved from either side)
+const getMyGyms = async (req, res) => {
+  try {
+    const trainer = await User.findById(req.user.id)
+      .populate('appliedGyms.gymId', 'name address contactNumber timings profilePic facilities description');
+    
+    if (!trainer) {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    // ✅ Filter only approved gyms and skip null gymId
+    const approvedGyms = trainer.appliedGyms
+      .filter(app => app.status === 'approved' && app.gymId !== null)
+      .map(app => {
+        if (!app.gymId) return null;
+        return {
+          ...app.gymId.toObject(),
+          joinedAt: app.appliedAt,
+          status: app.status,
+          source: app.source || 'trainer'
+        };
+      })
+      .filter(gym => gym !== null);
+    
+    console.log(`📍 Trainer ${req.user.name} is associated with ${approvedGyms.length} gyms`);
+    
+    res.json({ success: true, data: approvedGyms });
+  } catch (error) {
+    console.error('getMyGyms error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
+
   getAllTrainers,
   getTrainerById,
   followTrainer,
   getFollowingTrainers,
+  getMyGyms,
   getMyFollowers,
   getTrainerStats,
   getTrainerCourses,

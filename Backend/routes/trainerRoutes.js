@@ -13,6 +13,7 @@ const {
   getMyApplications,
   getMyRequests,
   updateRequestStatus,
+  getMyGyms,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -22,6 +23,7 @@ const router = express.Router();
 router.get('/', getAllTrainers);
 
 // Trainer specific
+router.get('/my-gyms', protect, authorize('trainer'), getMyGyms);
 router.get('/following', protect, authorize('user'), getFollowingTrainers);
 router.get('/my/followers', protect, authorize('trainer'), getMyFollowers);
 router.get('/my/stats', protect, authorize('trainer'), getTrainerStats);

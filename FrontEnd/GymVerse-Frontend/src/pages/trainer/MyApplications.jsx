@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { trainerService } from '../../services/trainerService';
-import { BuildingOfficeIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, XCircleIcon, ClockIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const MyApplications = () => {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -16,14 +19,40 @@ const MyApplications = () => {
     setLoading(true);
     try {
       const res = await trainerService.getMyApplications();
-      // ✅ Filter only trainer-initiated applications (where status is not from owner hiring)
-      // In backend, we need to differentiate. For now, show all.
-      setApplications(res.data.data || []);
+      // ✅ Pending aur rejected dono dikhao (rejected wale dubara apply kar sakte hain)
+      const apps = res.data.data || [];
+      setApplications(apps);
     } catch (error) {
       console.error('Failed to fetch applications:', error);
       toast.error('Failed to load applications');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReapply = async (gymId) => {
+    setProcessing(gymId);
+    try {
+      await trainerService.applyToGym(gymId);
+      toast.success('Application resubmitted successfully!');
+      fetchApplications(); // Refresh list
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to reapply');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleCancel = async (requestId) => {
+    setProcessing(requestId);
+    try {
+      await trainerService.updateRequestStatus(requestId, 'rejected');
+      toast.success('Application cancelled');
+      fetchApplications();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel');
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -39,12 +68,13 @@ const MyApplications = () => {
   };
 
   const pendingApps = applications.filter(a => a.status === 'pending');
-  const historyApps = applications.filter(a => a.status !== 'pending');
+  const rejectedApps = applications.filter(a => a.status === 'rejected');
+  const approvedApps = applications.filter(a => a.status === 'approved');
 
   if (loading) {
     return (
       <DashboardLayout title="My Applications" role="trainer">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading applications...</p>
@@ -58,10 +88,11 @@ const MyApplications = () => {
     <DashboardLayout title="My Applications" role="trainer">
       <div className="space-y-8">
         <div>
-          <h2 className="text-xl font-semibold text-white mb-4">Applications You Sent ({applications.length})</h2>
-          <p className="text-gray-400 text-sm mb-4">Jobs you've applied to at gyms</p>
+          <h2 className="text-2xl font-bold text-white">My Applications</h2>
+          <p className="text-gray-400 text-sm mt-1">Jobs you've applied to at gyms</p>
         </div>
 
+        {/* Pending Applications */}
         {pendingApps.length > 0 && (
           <div>
             <h3 className="text-lg font-medium text-white mb-3">Pending ({pendingApps.length})</h3>
@@ -74,7 +105,16 @@ const MyApplications = () => {
                       <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
                       <p className="text-gray-500 text-xs mt-2">Applied: {new Date(app.appliedAt).toLocaleDateString()}</p>
                     </div>
-                    {getStatusBadge(app.status)}
+                    <div className="text-right">
+                      {getStatusBadge(app.status)}
+                      <button
+                        onClick={() => handleCancel(app._id)}
+                        disabled={processing === app._id}
+                        className="mt-2 text-xs text-red-400 hover:text-red-300"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -82,17 +122,49 @@ const MyApplications = () => {
           </div>
         )}
 
-        {historyApps.length > 0 && (
+        {/* Rejected Applications - Can Reapply */}
+        {rejectedApps.length > 0 && (
           <div>
-            <h3 className="text-lg font-medium text-white mb-3">History ({historyApps.length})</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
-              {historyApps.map((app) => (
-                <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-white/10">
+            <h3 className="text-lg font-medium text-white mb-3">Rejected ({rejectedApps.length})</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {rejectedApps.map((app) => (
+                <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-red-500/30">
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-white font-semibold">{app.gymId?.name}</h4>
                       <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
-                      <p className="text-gray-500 text-xs mt-2">Applied: {new Date(app.appliedAt).toLocaleDateString()}</p>
+                      <p className="text-gray-500 text-xs mt-2">Rejected on: {new Date(app.updatedAt || app.appliedAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      {getStatusBadge(app.status)}
+                      <button
+                        onClick={() => handleReapply(app.gymId._id)}
+                        disabled={processing === app.gymId._id}
+                        className="mt-2 text-xs bg-purple-600 px-3 py-1 rounded-lg text-white hover:bg-purple-700 flex items-center gap-1"
+                      >
+                        <ArrowPathIcon className="w-3 h-3" />
+                        Apply Again
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Approved Applications */}
+        {approvedApps.length > 0 && (
+          <div>
+            <h3 className="text-lg font-medium text-white mb-3">Approved ({approvedApps.length})</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+              {approvedApps.map((app) => (
+                <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-green-500/30">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-white font-semibold">{app.gymId?.name}</h4>
+                      <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
+                      <p className="text-gray-500 text-xs mt-2">Approved on: {new Date(app.updatedAt || app.appliedAt).toLocaleDateString()}</p>
                     </div>
                     {getStatusBadge(app.status)}
                   </div>
@@ -107,7 +179,12 @@ const MyApplications = () => {
             <BuildingOfficeIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No Applications Yet</h3>
             <p className="text-gray-400">Apply to gyms to see your applications here.</p>
-            <button onClick={() => window.location.href = '/trainer/available-gyms'} className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white">Find Gyms</button>
+            <button
+              onClick={() => navigate('/trainer/available-gyms')}
+              className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700"
+            >
+              Find Gyms
+            </button>
           </div>
         )}
       </div>

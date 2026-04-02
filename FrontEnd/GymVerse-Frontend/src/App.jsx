@@ -30,6 +30,7 @@ import MyRequests from "./pages/trainer/MyRequests";
 import GymSentRequests from "./pages/owner/GymSentRequests";
 import AllTrainerRequests from "./pages/owner/AllTrainerRequests";
 import AllSentRequests from "./pages/owner/AllSentRequests";
+import MyGyms from "./pages/trainer/MyGyms";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -126,6 +127,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["trainer"]}>
             <TrainerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trainer/my-gyms"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <MyGyms />
           </ProtectedRoute>
         }
       />

@@ -52,6 +52,7 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'Create Course', icon: PlusCircleIcon, path: '/trainer/create-course' },
         { name: 'My Blogs', icon: DocumentTextIcon, path: '/trainer/blogs' },
         { name: 'Create Blog', icon: PlusCircleIcon, path: '/trainer/create-blog' },
+        { name: 'My Gyms', icon: BuildingOfficeIcon, path: '/trainer/my-gyms' },
         { name: 'Find Jobs', icon: BriefcaseIcon, path: '/trainer/available-gyms' },
         { name: 'My Applications', icon: DocumentTextIcon, path: '/trainer/my-applications' },
         { name: 'Offers', icon: DocumentTextIcon, path: '/trainer/my-requests' },
