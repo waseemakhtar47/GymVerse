@@ -135,7 +135,7 @@ const TrainerProfile = () => {
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+            <div className="w-32 h-32 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
               {trainer.profilePic ? (
                 <img src={trainer.profilePic} alt={trainer.name} className="w-full h-full object-cover" />
               ) : (

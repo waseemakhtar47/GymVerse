@@ -5,4 +5,5 @@ export const userService = {
   updateProfile: (data) => api.put('/users/profile', data),
   changePassword: (data) => api.put('/users/change-password', data),
   updateProfilePic: (profilePic) => api.put('/users/profile-pic', { profilePic }),
+  searchUsers: (query) => api.get(`/users/search?q=${query}`),
 };

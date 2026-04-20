@@ -3,11 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { chatService } from '../services/chatService';
+import { userService } from '../services/userService';
 import DashboardLayout from '../components/DashboardLayout';
 import { 
   PaperAirplaneIcon, 
   UserIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  PlusCircleIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -22,6 +26,10 @@ const Chat = () => {
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [searchUsers, setSearchUsers] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const initialChatId = searchParams.get('chatId');
@@ -32,8 +40,13 @@ const Chat = () => {
 
   useEffect(() => {
     if (newMessage && selectedChat && newMessage.chatId === selectedChat._id) {
-      setMessages(prev => [...prev, newMessage.message]);
+      setMessages(prev => {
+        const exists = prev.some(msg => msg._id === newMessage.message._id);
+        if (exists) return prev;
+        return [...prev, newMessage.message];
+      });
       markRead(selectedChat._id, user._id);
+      scrollToBottom();
     }
   }, [newMessage, selectedChat]);
 
@@ -49,6 +62,18 @@ const Chat = () => {
       }
     }
   }, [initialChatId, chats]);
+
+  // Search users for new chat
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      if (searchUsers.length >= 2) {
+        searchAllUsers();
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounce);
+  }, [searchUsers]);
 
   const fetchChats = async () => {
     setLoading(true);
@@ -80,21 +105,76 @@ const Chat = () => {
     inputRef.current?.focus();
   };
 
+  const searchAllUsers = async () => {
+    setSearching(true);
+    try {
+      const res = await userService.searchUsers(searchUsers);
+      const filtered = (res.data.data || []).filter(u => u._id !== user._id);
+      setSearchResults(filtered);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const startNewChat = async (selectedUser) => {
+    try {
+      const res = await chatService.getOrCreateChat(selectedUser._id);
+      const newChat = res.data.data;
+      
+      // Fetch fresh chat data to ensure otherParticipant is populated
+      const freshChat = await chatService.getMyChats();
+      const updatedChat = freshChat.data.data.find(c => c._id === newChat._id);
+      
+      setChats(prev => [updatedChat, ...prev.filter(c => c._id !== newChat._id)]);
+      setSelectedChat(updatedChat);
+      setMessages([]);
+      joinChat(updatedChat._id);
+      
+      setShowNewChatModal(false);
+      setSearchUsers('');
+      setSearchResults([]);
+      toast.success(`Chat with ${selectedUser.name} started!`);
+      
+      inputRef.current?.focus();
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      toast.error('Failed to start chat');
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageInput.trim()) return;
     
-    const receiverId = selectedChat.otherParticipant._id;
-    setSending(true);
+    if (!selectedChat || !selectedChat.otherParticipant || !selectedChat.otherParticipant._id) {
+      toast.error('Please select a chat first');
+      return;
+    }
     
-    sendMessage(selectedChat._id, user._id, receiverId, messageInput);
+    const receiverId = selectedChat.otherParticipant._id;
+    const messageText = messageInput.trim();
+    
+    setSending(true);
+    setMessageInput('');
     
     try {
-      await chatService.sendMessage(selectedChat._id, messageInput);
-      setMessageInput('');
+      const res = await chatService.sendMessage(selectedChat._id, messageText);
+      setMessages(prev => [...prev, res.data.data]);
+      sendMessage(selectedChat._id, user._id, receiverId, messageText);
+      scrollToBottom();
+      
+      // Update last message in chat list
+      setChats(prev => prev.map(chat => 
+        chat._id === selectedChat._id 
+          ? { ...chat, lastMessage: messageText, lastMessageTime: new Date() }
+          : chat
+      ));
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
+      setMessageInput(messageText);
     } finally {
       setSending(false);
     }
@@ -126,22 +206,25 @@ const Chat = () => {
       <div className="flex h-[calc(100vh-120px)] bg-gray-900/50 rounded-xl overflow-hidden border border-white/10">
         {/* Chat List */}
         <div className="w-80 border-r border-white/10 flex flex-col">
-          <div className="p-4 border-b border-white/10">
-            <h2 className="text-white font-semibold">Chats</h2>
-            <p className="text-gray-400 text-xs">({chats.length} conversations)</p>
+          <div className="p-4 border-b border-white/10 flex justify-between items-center">
+            <div>
+              <h2 className="text-white font-semibold">Chats</h2>
+              <p className="text-gray-400 text-xs">({chats.length} conversations)</p>
+            </div>
+            <button
+              onClick={() => setShowNewChatModal(true)}
+              className="p-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition"
+              title="New Chat"
+            >
+              <PlusCircleIcon className="w-5 h-5" />
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {chats.length === 0 ? (
               <div className="text-center py-8">
                 <UserGroupIcon className="w-12 h-12 mx-auto text-gray-500 mb-2" />
                 <p className="text-gray-400 text-sm">No chats yet</p>
-                <p className="text-gray-500 text-xs mt-1">Go to trainers page to start a conversation</p>
-                <button
-                  onClick={() => navigate('/user/trainers')}
-                  className="mt-4 px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
-                >
-                  Find Trainers
-                </button>
+                <p className="text-gray-500 text-xs mt-1">Click the + button to start a new conversation</p>
               </div>
             ) : (
               chats.map((chat) => {
@@ -172,14 +255,15 @@ const Chat = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center">
-                          <p className="text-white font-medium truncate">{otherUser?.name}</p>
-                          {unread > 0 && (
-                            <span className="bg-purple-600 text-white text-xs rounded-full px-2 py-0.5">
-                              {unread}
-                            </span>
-                          )}
+                          <p className="text-white font-medium truncate">{otherUser?.name || 'User'}</p>
+                          <p className="text-gray-500 text-xs">{otherUser?.role || 'User'}</p>
                         </div>
                         <p className="text-gray-400 text-sm truncate">{chat.lastMessage || 'No messages yet'}</p>
+                        {unread > 0 && (
+                          <span className="inline-block mt-1 bg-purple-600 text-white text-xs rounded-full px-2 py-0.5">
+                            {unread} new
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -194,24 +278,26 @@ const Chat = () => {
           {selectedChat ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-white/10 flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
-                    {selectedChat.otherParticipant?.profilePic ? (
-                      <img src={selectedChat.otherParticipant.profilePic} alt={selectedChat.otherParticipant.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <UserIcon className="w-5 h-5 text-white" />
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                      {selectedChat.otherParticipant?.profilePic ? (
+                        <img src={selectedChat.otherParticipant.profilePic} alt={selectedChat.otherParticipant.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                    {selectedChat.otherParticipant && isUserOnline(selectedChat.otherParticipant._id) && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></div>
                     )}
                   </div>
-                  {isUserOnline(selectedChat.otherParticipant._id) && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold">{selectedChat.otherParticipant?.name}</h3>
-                  <p className="text-gray-400 text-xs">
-                    {isUserOnline(selectedChat.otherParticipant._id) ? 'Online' : 'Offline'}
-                  </p>
+                  <div>
+                    <h3 className="text-white font-semibold">{selectedChat.otherParticipant?.name || 'User'}</h3>
+                    <p className="text-gray-400 text-xs">
+                      {selectedChat.otherParticipant?.role || 'User'} • {selectedChat.otherParticipant && isUserOnline(selectedChat.otherParticipant._id) ? 'Online' : 'Offline'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -226,11 +312,11 @@ const Chat = () => {
                   messages.map((msg, idx) => {
                     const isSender = msg.senderId?._id === user._id;
                     return (
-                      <div key={idx} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
+                      <div key={msg._id || idx} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] ${isSender ? 'bg-purple-600' : 'bg-gray-700'} rounded-lg px-4 py-2`}>
                           <p className="text-white text-sm break-words">{msg.message}</p>
                           <p className="text-gray-300 text-xs mt-1 text-right">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
                           </p>
                         </div>
                       </div>
@@ -264,12 +350,85 @@ const Chat = () => {
               <div className="text-center">
                 <UserGroupIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
                 <h3 className="text-white text-lg font-semibold">Select a chat</h3>
-                <p className="text-gray-400 text-sm mt-1">Choose a conversation to start messaging</p>
+                <p className="text-gray-400 text-sm mt-1">Choose a conversation or click + to start a new chat</p>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowNewChatModal(false)}>
+          <div className="bg-gray-900 rounded-xl max-w-md w-full mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">New Chat</h3>
+                <button onClick={() => setShowNewChatModal(false)} className="text-gray-400 hover:text-white">
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              {/* Search Input */}
+              <div className="relative mb-4">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchUsers}
+                  onChange={(e) => setSearchUsers(e.target.value)}
+                  placeholder="Search by name or email..."
+                  className="w-full pl-10 pr-4 py-3 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
+                />
+              </div>
+              
+              {/* Search Results */}
+              {searching ? (
+                <div className="text-center py-8">
+                  <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="text-gray-400 text-sm mt-2">Searching...</p>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {searchResults.map((result) => (
+                    <div
+                      key={result._id}
+                      onClick={() => startNewChat(result)}
+                      className="flex items-center gap-3 p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition"
+                    >
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                          {result.profilePic ? (
+                            <img src={result.profilePic} alt={result.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <UserIcon className="w-5 h-5 text-white" />
+                          )}
+                        </div>
+                        {onlineUsers.includes(result._id) && (
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-medium">{result.name}</p>
+                        <p className="text-gray-400 text-sm">{result.email}</p>
+                        <span className="text-xs text-purple-400 capitalize">{result.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : searchUsers.length >= 2 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No users found</p>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p>Type at least 2 characters to search</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

@@ -45,13 +45,11 @@ app.get('/', (req, res) => {
 const userSockets = new Map();
 
 io.on('connection', (socket) => {
-  console.log('✅ New client connected:', socket.id);
   
   // Register user
   socket.on('register-user', (userId) => {
     if (userId) {
       userSockets.set(userId, socket.id);
-      console.log(`📍 User ${userId} registered with socket ${socket.id}`);
       io.emit('online-users', Array.from(userSockets.keys()));
     }
   });
@@ -60,60 +58,34 @@ io.on('connection', (socket) => {
   socket.on('join-chat', (chatId) => {
     if (chatId) {
       socket.join(`chat_${chatId}`);
-      console.log(`📌 Socket ${socket.id} joined chat ${chatId}`);
     }
   });
   
-  // Send message
-  socket.on('send-message', async (data) => {
+  // ✅ FIXED: Send message - Socket ONLY notifies, DOES NOT save to database
+  socket.on('send-message', (data) => {
     const { chatId, senderId, receiverId, message } = data;
-    console.log(`💬 Message from ${senderId} to ${receiverId}: ${message}`);
     
-    // Save to database
-    try {
-      const Chat = require('./models/Chat');
-      const chat = await Chat.findById(chatId);
-      if (chat) {
-        const newMessage = {
-          senderId,
-          receiverId,
-          message,
+    // ✅ ONLY emit to receiver if online (NO database save here)
+    const receiverSocketId = userSockets.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('new-message', {
+        chatId,
+        message: {
+          _id: Date.now(),
+          senderId: { _id: senderId },
+          receiverId: { _id: receiverId },
+          message: message,
           read: false,
-        };
-        chat.messages.push(newMessage);
-        chat.lastMessage = message;
-        chat.lastMessageTime = new Date();
-        
-        const currentUnread = chat.unreadCount?.get(receiverId) || 0;
-        if (!chat.unreadCount) chat.unreadCount = new Map();
-        chat.unreadCount.set(receiverId, currentUnread + 1);
-        
-        await chat.save();
-        
-        // Emit to receiver if online
-        const receiverSocketId = userSockets.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit('new-message', {
-            chatId,
-            message: {
-              ...newMessage,
-              _id: chat.messages[chat.messages.length - 1]._id,
-              createdAt: new Date(),
-              senderId: { _id: senderId },
-              receiverId: { _id: receiverId },
-            },
-          });
-        }
-        
-        // Emit to sender's room
-        io.to(`chat_${chatId}`).emit('message-sent', {
-          chatId,
-          message: newMessage,
-        });
-      }
-    } catch (error) {
-      console.error('❌ Socket message error:', error);
+          createdAt: new Date(),
+        },
+      });
     }
+    
+    // Also emit to sender's room for consistency
+    io.to(`chat_${chatId}`).emit('message-sent', {
+      chatId,
+      message: { message, senderId, receiverId }
+    });
   });
   
   // Mark messages as read
@@ -156,7 +128,6 @@ io.on('connection', (socket) => {
     if (disconnectedUser) {
       io.emit('online-users', Array.from(userSockets.keys()));
     }
-    console.log('❌ Client disconnected:', socket.id);
   });
 });
 

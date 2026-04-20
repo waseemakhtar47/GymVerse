@@ -25,17 +25,14 @@ export const ChatProvider = ({ children }) => {
       setSocket(newSocket);
       
       newSocket.on('connect', () => {
-        console.log('✅ Socket connected:', newSocket.id);
         newSocket.emit('register-user', user._id);
       });
       
       newSocket.on('online-users', (users) => {
-        console.log('📍 Online users:', users);
         setOnlineUsers(users);
       });
       
       newSocket.on('new-message', (data) => {
-        console.log('💬 New message received:', data);
         setNewMessage(data);
       });
       
@@ -44,7 +41,6 @@ export const ChatProvider = ({ children }) => {
       });
       
       newSocket.on('disconnect', () => {
-        console.log('❌ Socket disconnected');
       });
       
       return () => {
@@ -62,11 +58,11 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendMessage = (chatId, senderId, receiverId, message) => {
-    if (socketRef.current && chatId && senderId && receiverId && message) {
-      socketRef.current.emit('send-message', { chatId, senderId, receiverId, message });
-    }
-  };
+const sendMessage = (chatId, senderId, receiverId, message) => {
+  if (socketRef.current && chatId && senderId && receiverId && message) {
+    socketRef.current.emit('send-message', { chatId, senderId, receiverId, message });
+  }
+};
 
   const markRead = (chatId, userId) => {
     if (socketRef.current && chatId && userId) {

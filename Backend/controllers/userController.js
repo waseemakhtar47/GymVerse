@@ -81,9 +81,33 @@ const updateProfilePic = async (req, res) => {
   }
 };
 
+// @desc    Search users by name or email
+const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    const users = await User.find({
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ],
+      isActive: true
+    }).select('-password');
+    
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('searchUsers error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   changePassword,
+  searchUsers,
   updateProfilePic,
 };
