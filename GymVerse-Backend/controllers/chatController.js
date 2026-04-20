@@ -142,9 +142,64 @@ const sendMessage = async (req, res) => {
   }
 };
 
+
+// @desc    Clear all messages in a chat
+const clearChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    // Check if user is participant
+    if (!chat.participants.includes(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    chat.messages = [];
+    chat.lastMessage = '';
+    chat.lastMessageTime = new Date();
+    chat.unreadCount = new Map();
+    await chat.save();
+    
+    res.json({ success: true, message: 'Chat cleared successfully' });
+  } catch (error) {
+    console.error('clearChat error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete entire chat
+const deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    // Check if user is participant
+    if (!chat.participants.includes(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    await Chat.findByIdAndDelete(chatId);
+    
+    res.json({ success: true, message: 'Chat deleted successfully' });
+  } catch (error) {
+    console.error('deleteChat error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getOrCreateChat,
   getMyChats,
   getChatMessages,
   sendMessage,
+  clearChat,
+  deleteChat,
 };

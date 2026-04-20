@@ -11,7 +11,8 @@ import {
   UserGroupIcon,
   PlusCircleIcon,
   MagnifyingGlassIcon,
-  XMarkIcon
+  XMarkIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -26,6 +27,8 @@ const Chat = () => {
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [searchUsers, setSearchUsers] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -123,7 +126,6 @@ const Chat = () => {
       const res = await chatService.getOrCreateChat(selectedUser._id);
       const newChat = res.data.data;
       
-      // Fetch fresh chat data to ensure otherParticipant is populated
       const freshChat = await chatService.getMyChats();
       const updatedChat = freshChat.data.data.find(c => c._id === newChat._id);
       
@@ -165,7 +167,6 @@ const Chat = () => {
       sendMessage(selectedChat._id, user._id, receiverId, messageText);
       scrollToBottom();
       
-      // Update last message in chat list
       setChats(prev => prev.map(chat => 
         chat._id === selectedChat._id 
           ? { ...chat, lastMessage: messageText, lastMessageTime: new Date() }
@@ -180,6 +181,55 @@ const Chat = () => {
     }
   };
 
+  // Clear all messages in selected chat
+  const handleClearChat = async () => {
+    if (!selectedChat) return;
+    
+    if (!confirm(`Are you sure you want to clear all messages in this chat? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setClearing(true);
+    try {
+      await chatService.clearChat(selectedChat._id);
+      setMessages([]);
+      setChats(prev => prev.map(chat => 
+        chat._id === selectedChat._id 
+          ? { ...chat, lastMessage: 'No messages yet', lastMessageTime: new Date() }
+          : chat
+      ));
+      toast.success('Chat cleared successfully');
+    } catch (error) {
+      console.error('Failed to clear chat:', error);
+      toast.error('Failed to clear chat');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  // ✅ Delete entire chat (remove from sidebar)
+  const handleDeleteChat = async () => {
+    if (!selectedChat) return;
+    
+    if (!confirm(`Are you sure you want to delete this chat completely? All messages will be lost forever.`)) {
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      await chatService.deleteChat(selectedChat._id);
+      setChats(prev => prev.filter(chat => chat._id !== selectedChat._id));
+      setSelectedChat(null);
+      setMessages([]);
+      toast.success('Chat deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      toast.error('Failed to delete chat');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -191,7 +241,7 @@ const Chat = () => {
   if (loading && chats.length === 0) {
     return (
       <DashboardLayout title="Messages" role={user?.role}>
-        <div className="flex items-center justify-center min-h-100">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading chats...</p>
@@ -242,7 +292,7 @@ const Chat = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                           {otherUser?.profilePic ? (
                             <img src={otherUser.profilePic} alt={otherUser.name} className="w-full h-full object-cover" />
                           ) : (
@@ -281,7 +331,7 @@ const Chat = () => {
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                       {selectedChat.otherParticipant?.profilePic ? (
                         <img src={selectedChat.otherParticipant.profilePic} alt={selectedChat.otherParticipant.name} className="w-full h-full object-cover" />
                       ) : (
@@ -299,6 +349,28 @@ const Chat = () => {
                     </p>
                   </div>
                 </div>
+                
+                <div className="flex gap-2">
+                  {/* Clear Chat Button */}
+                  <button
+                    onClick={handleClearChat}
+                    disabled={clearing || messages.length === 0}
+                    className="p-2 bg-yellow-600/20 rounded-lg text-yellow-400 hover:bg-yellow-600/30 transition disabled:opacity-50"
+                    title="Clear all messages"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                  
+                  {/* ✅ Delete Chat Button */}
+                  <button
+                    onClick={handleDeleteChat}
+                    disabled={deleting}
+                    className="p-2 bg-red-600/20 rounded-lg text-red-400 hover:bg-red-600/30 transition disabled:opacity-50"
+                    title="Delete chat"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -314,7 +386,7 @@ const Chat = () => {
                     return (
                       <div key={msg._id || idx} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] ${isSender ? 'bg-purple-600' : 'bg-gray-700'} rounded-lg px-4 py-2`}>
-                          <p className="text-white text-sm wrap-break-word">{msg.message}</p>
+                          <p className="text-white text-sm break-words">{msg.message}</p>
                           <p className="text-gray-300 text-xs mt-1 text-right">
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
                           </p>
@@ -397,7 +469,7 @@ const Chat = () => {
                       className="flex items-center gap-3 p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition"
                     >
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                           {result.profilePic ? (
                             <img src={result.profilePic} alt={result.name} className="w-full h-full object-cover" />
                           ) : (
