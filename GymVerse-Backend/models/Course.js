@@ -17,7 +17,11 @@ const courseSchema = new mongoose.Schema(
     },
     videoUrl: {
       type: String,
-      required: true,
+      default: '',
+    },
+    videoFile: {
+      type: String,
+      default: '', // Store file path or cloudinary URL
     },
     thumbnail: {
       type: String,
@@ -63,6 +67,13 @@ const courseSchema = new mongoose.Schema(
           type: String,
           enum: ['active', 'expired'],
           default: 'active',
+        },
+        progress: {
+          type: Number,
+          default: 0,
+        },
+        lastWatched: {
+          type: Date,
         },
       },
     ],

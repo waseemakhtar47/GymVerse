@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { courseService } from '../../services/courseService';
-import { VideoCameraIcon, PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { VideoCameraIcon, PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const MyCourses = () => {
   const navigate = useNavigate();
@@ -20,25 +21,27 @@ const MyCourses = () => {
       setCourses(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch courses:', error);
+      toast.error('Failed to load courses');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this course?')) return;
+  const handleDelete = async (id, title) => {
+    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
     try {
       await courseService.deleteCourse(id);
+      toast.success('Course deleted successfully');
       fetchCourses();
     } catch (error) {
-      alert('Failed to delete course');
+      toast.error(error.response?.data?.message || 'Failed to delete');
     }
   };
 
   if (loading) {
     return (
       <DashboardLayout title="My Courses" role="trainer">
-        <div className="flex items-center justify-center min-h-100">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading courses...</p>
@@ -55,7 +58,7 @@ const MyCourses = () => {
           onClick={() => navigate('/trainer/create-course')}
           className="px-4 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition flex items-center gap-2"
         >
-          <PlusIcon className="w-5 h-5" />
+          <VideoCameraIcon className="w-5 h-5" />
           Create New Course
         </button>
 
@@ -68,26 +71,51 @@ const MyCourses = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => (
-              <div key={course._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-white/10">
-                <div className="h-32 bg-linear-to-r from-purple-600 to-blue-600 p-4">
-                  <h3 className="text-white font-bold text-lg">{course.title}</h3>
-                  <p className="text-white/80 text-sm">{course.level} • {course.duration}</p>
-                </div>
+              <div key={course._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-white/10 hover:scale-105 transition">
+                {/* Thumbnail */}
+                {course.thumbnail ? (
+                  <img 
+                    src={course.thumbnail} 
+                    alt={course.title} 
+                    className="w-full h-40 object-cover"
+                  />
+                ) : (
+                  <div className="h-40 bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                    <VideoCameraIcon className="w-12 h-12 text-white/50" />
+                  </div>
+                )}
                 
                 <div className="p-4">
+                  <h3 className="text-white font-bold text-lg mb-1">{course.title}</h3>
                   <p className="text-gray-400 text-sm mb-2 line-clamp-2">{course.description}</p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-purple-400 font-bold">${course.price}</span>
-                    <span className="text-gray-400 text-sm">{course.enrolledUsers?.length || 0} students</span>
+                  
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-purple-400 font-bold">₹{course.price}</span>
+                    <span className="text-gray-400 text-xs">{course.enrolledUsers?.length || 0} students</span>
                   </div>
                   
                   <div className="flex gap-2">
-                    <button className="flex-1 py-2 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700 transition flex items-center justify-center gap-1">
+                    {/* View Course */}
+                    <button
+                      onClick={() => navigate(`/course-player/${course._id}`)}
+                      className="flex-1 py-2 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700 transition flex items-center justify-center gap-1"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      View
+                    </button>
+                    
+                    {/* Edit Course */}
+                    <button
+                      onClick={() => navigate(`/trainer/edit-course/${course._id}`)}
+                      className="flex-1 py-2 bg-green-600/20 rounded-lg text-green-400 text-sm hover:bg-green-600/30 transition flex items-center justify-center gap-1"
+                    >
                       <PencilIcon className="w-4 h-4" />
                       Edit
                     </button>
+                    
+                    {/* Delete Course */}
                     <button
-                      onClick={() => handleDelete(course._id)}
+                      onClick={() => handleDelete(course._id, course.title)}
                       className="flex-1 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center justify-center gap-1"
                     >
                       <TrashIcon className="w-4 h-4" />

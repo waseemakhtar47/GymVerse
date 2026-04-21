@@ -33,7 +33,9 @@ import AllSentRequests from "./pages/owner/AllSentRequests";
 import MyGyms from "./pages/trainer/MyGyms";
 import GymDetails from "./pages/GymDetails";
 import Chat from "./pages/Chat";
-import QRVerification from './pages/owner/QRVerification';
+import QRVerification from "./pages/owner/QRVerification";
+import CoursePlayer from "./pages/CoursePlayer";
+import EditCourse from "./pages/trainer/EditCourse";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -66,6 +68,7 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
       <Route path="/gym-details/:id" element={<GymDetails />} />
+      <Route path="/course-player/:courseId" element={<CoursePlayer />} />
       {/* User Routes */}
       <Route
         path="/user/dashboard"
@@ -204,6 +207,16 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/trainer/edit-course/:id"
+        element={
+          <ProtectedRoute allowedRoles={["trainer"]}>
+            <EditCourse />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/trainer/followers"
         element={
