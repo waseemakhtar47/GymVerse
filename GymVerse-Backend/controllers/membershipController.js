@@ -1,34 +1,27 @@
 const Membership = require('../models/Membership');
 const Gym = require('../models/Gym');
-const User = require('../models/User');
 
-// @desc    Create new membership
-// @route   POST /api/memberships
 const createMembership = async (req, res) => {
   try {
     const { gymId, plan, paymentAmount } = req.body;
+    const userId = req.user.id;
     
-    const gym = await Gym.findById(gymId);
-    if (!gym) {
-      return res.status(404).json({ success: false, message: 'Gym not found' });
-    }
-    
-    // Check if user already has active membership for this gym
-    const existingMembership = await Membership.findOne({
-      userId: req.user.id,
-      gymId,
-      status: 'active',
+    // ✅ STRONG CHECK: Any active membership for this gym?
+    const existingActive = await Membership.findOne({
+      userId: userId,
+      gymId: gymId,
+      status: 'active'
     });
     
-    if (existingMembership) {
+    if (existingActive) {
       return res.status(400).json({ 
         success: false, 
-        message: 'You already have an active membership for this gym' 
+        message: 'You already have an active membership for this gym',
+        code: 'ACTIVE_EXISTS'
       });
     }
     
-    // Calculate end date based on plan
-    const startDate = new Date();
+    // Calculate plan details
     let endDate = new Date();
     let price = 0;
     
@@ -50,58 +43,51 @@ const createMembership = async (req, res) => {
     }
     
     const membership = await Membership.create({
-      userId: req.user.id,
-      gymId,
-      plan,
-      startDate,
-      endDate,
+      userId: userId,
+      gymId: gymId,
+      plan: plan,
+      startDate: new Date(),
+      endDate: endDate,
       paymentAmount: paymentAmount || price,
       paymentStatus: 'completed',
       status: 'active',
     });
     
-    // Generate QR code (membership ID + user ID + gym ID)
-    membership.qrCode = `${membership._id}|${req.user.id}|${gymId}`;
+    membership.qrCode = `${membership._id}|${userId}|${gymId}`;
     await membership.save();
-    
-    // Populate gym details
     await membership.populate('gymId', 'name address');
     
-    res.status(201).json({ success: true, data: membership });
+    res.status(201).json({ 
+      success: true, 
+      message: 'Membership purchased successfully!', 
+      data: membership 
+    });
+    
   } catch (error) {
     console.error('createMembership error:', error);
+    
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You already have an active membership for this gym'
+      });
+    }
+    
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get my memberships (user)
-// @route   GET /api/memberships/my-memberships
-// @desc    Get my memberships (user)
 const getMyMemberships = async (req, res) => {
   try {
+    const now = new Date();
+    await Membership.updateMany(
+      { userId: req.user.id, status: 'active', endDate: { $lt: now } },
+      { status: 'expired' }
+    );
+    
     const memberships = await Membership.find({ userId: req.user.id })
       .populate('gymId', 'name address contactNumber timings')
       .sort('-createdAt');
-    
-    // Update expired memberships
-    const now = new Date();
-    let updated = false;
-    
-    for (const membership of memberships) {
-      if (membership.status === 'active' && new Date(membership.endDate) < now) {
-        membership.status = 'expired';
-        await membership.save();
-        updated = true;
-      }
-    }
-    
-    if (updated) {
-      // Refetch if any were updated
-      const freshMemberships = await Membership.find({ userId: req.user.id })
-        .populate('gymId', 'name address contactNumber timings')
-        .sort('-createdAt');
-      return res.json({ success: true, data: freshMemberships });
-    }
     
     res.json({ success: true, data: memberships });
   } catch (error) {
@@ -110,8 +96,6 @@ const getMyMemberships = async (req, res) => {
   }
 };
 
-// @desc    Get gym memberships (owner only)
-// @route   GET /api/memberships/gym/:gymId
 const getGymMemberships = async (req, res) => {
   try {
     const gym = await Gym.findById(req.params.gymId);
@@ -119,19 +103,14 @@ const getGymMemberships = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Gym not found' });
     }
     
-    // Check if user is the owner of this gym
     if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Not authorized to view memberships for this gym' 
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
     
     const memberships = await Membership.find({ gymId: req.params.gymId })
       .populate('userId', 'name email phone profilePic')
       .sort('-createdAt');
     
-    // Add stats
     const activeCount = memberships.filter(m => m.status === 'active').length;
     const expiredCount = memberships.filter(m => m.status === 'expired').length;
     const cancelledCount = memberships.filter(m => m.status === 'cancelled').length;
@@ -156,8 +135,6 @@ const getGymMemberships = async (req, res) => {
   }
 };
 
-// @desc    Verify QR code
-// @route   POST /api/memberships/verify
 const verifyQR = async (req, res) => {
   try {
     const { qrCode } = req.body;
@@ -166,40 +143,66 @@ const verifyQR = async (req, res) => {
       return res.status(400).json({ success: false, message: 'QR code is required' });
     }
     
-    const [membershipId, userId, gymId] = qrCode.split('|');
+    const parts = qrCode.split('|');
+    
+    if (parts.length !== 3) {
+      return res.status(400).json({ success: false, message: 'Invalid QR code format' });
+    }
+    
+    const [membershipId, userId, gymId] = parts;
     
     const membership = await Membership.findById(membershipId)
-      .populate('userId', 'name email profilePic')
+      .populate('userId', 'name email profilePic phone')
       .populate('gymId', 'name address');
     
     if (!membership) {
-      return res.status(404).json({ success: false, message: 'Invalid membership' });
+      return res.status(404).json({ success: false, message: 'Invalid membership QR code' });
     }
     
     if (membership.status !== 'active') {
       return res.status(400).json({ 
         success: false, 
-        message: `Membership is ${membership.status}` 
+        message: `Membership is ${membership.status}`,
+        reason: membership.status === 'expired' ? 'Your membership has expired' : 'Your membership has been cancelled'
       });
     }
     
-    if (new Date() > membership.endDate) {
+    const now = new Date();
+    if (now > membership.endDate) {
       membership.status = 'expired';
       await membership.save();
-      return res.status(400).json({ success: false, message: 'Membership has expired' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Membership has expired',
+        reason: `Expired on ${new Date(membership.endDate).toLocaleDateString()}`
+      });
     }
     
-    // Record last verification time
-    membership.lastVerified = new Date();
+    if (!membership.entryLogs) membership.entryLogs = [];
+    membership.entryLogs.push({
+      timestamp: now,
+      verifiedBy: req.user.id,
+      status: 'granted',
+    });
+    membership.lastVerified = now;
     await membership.save();
+    
+    const remainingDays = Math.ceil((membership.endDate - now) / (1000 * 60 * 60 * 24));
     
     res.json({ 
       success: true, 
       data: {
-        membership,
-        valid: true,
-        message: 'Access granted',
-        remainingDays: Math.ceil((membership.endDate - new Date()) / (1000 * 60 * 60 * 24)),
+        membership: {
+          _id: membership._id,
+          user: membership.userId,
+          gym: membership.gymId,
+          plan: membership.plan,
+          startDate: membership.startDate,
+          endDate: membership.endDate,
+          remainingDays,
+          entryCount: membership.entryLogs.length,
+        },
+        message: '✅ Access granted! Welcome to the gym.',
       }
     });
   } catch (error) {
@@ -208,8 +211,6 @@ const verifyQR = async (req, res) => {
   }
 };
 
-// @desc    Cancel membership
-// @route   PUT /api/memberships/:id/cancel
 const cancelMembership = async (req, res) => {
   try {
     const membership = await Membership.findById(req.params.id);
@@ -218,7 +219,6 @@ const cancelMembership = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Membership not found' });
     }
     
-    // User can cancel their own membership, owner can cancel any
     if (membership.userId.toString() !== req.user.id && 
         req.user.role !== 'owner' && 
         req.user.role !== 'admin') {
@@ -239,8 +239,6 @@ const cancelMembership = async (req, res) => {
   }
 };
 
-// @desc    Get membership by ID
-// @route   GET /api/memberships/:id
 const getMembershipById = async (req, res) => {
   try {
     const membership = await Membership.findById(req.params.id)
@@ -251,7 +249,6 @@ const getMembershipById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Membership not found' });
     }
     
-    // Check authorization
     if (membership.userId._id.toString() !== req.user.id && 
         req.user.role !== 'owner' && 
         req.user.role !== 'admin') {
@@ -265,18 +262,56 @@ const getMembershipById = async (req, res) => {
   }
 };
 
-// @desc    Get all memberships (admin only)
-// @route   GET /api/memberships
 const getAllMemberships = async (req, res) => {
   try {
     const memberships = await Membership.find()
-      .populate('userId', 'name email role')
+      .populate('userId', 'name email')
       .populate('gymId', 'name')
       .sort('-createdAt');
     
     res.json({ success: true, data: memberships });
   } catch (error) {
     console.error('getAllMemberships error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getEntryLogs = async (req, res) => {
+  try {
+    const membership = await Membership.findById(req.params.id)
+      .populate('entryLogs.verifiedBy', 'name email');
+    
+    if (!membership) {
+      return res.status(404).json({ success: false, message: 'Membership not found' });
+    }
+    
+    res.json({ success: true, data: membership.entryLogs || [] });
+  } catch (error) {
+    console.error('getEntryLogs error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const checkMembershipStatus = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    
+    const membership = await Membership.findOne({
+      userId: req.user.id,
+      gymId,
+      status: 'active',
+    });
+    
+    res.json({ 
+      success: true, 
+      data: {
+        hasActive: !!membership,
+        membership: membership || null,
+        endDate: membership?.endDate,
+      }
+    });
+  } catch (error) {
+    console.error('checkMembershipStatus error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -289,4 +324,6 @@ module.exports = {
   cancelMembership,
   getMembershipById,
   getAllMemberships,
+  getEntryLogs,
+  checkMembershipStatus,
 };

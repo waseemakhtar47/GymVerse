@@ -46,6 +46,14 @@ const membershipSchema = new mongoose.Schema(
     lastVerified: {
       type: Date,
     },
+    entryLogs: [
+      {
+        timestamp: { type: Date, default: Date.now },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['granted', 'denied'], default: 'granted' },
+        reason: { type: String, default: '' },
+      },
+    ],
   },
   {
     timestamps: true,

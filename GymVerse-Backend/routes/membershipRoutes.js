@@ -7,24 +7,21 @@ const {
   cancelMembership,
   getMembershipById,
   getAllMemberships,
+  getEntryLogs,
+  checkMembershipStatus,
 } = require('../controllers/membershipController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Public routes (for QR verification)
-router.post('/verify', verifyQR);
-
-// User routes
-router.get('/my-memberships', protect, getMyMemberships);
 router.post('/', protect, createMembership);
+router.get('/my-memberships', protect, getMyMemberships);
 router.put('/:id/cancel', protect, cancelMembership);
-
-// Owner routes
+router.get('/check/:gymId', protect, checkMembershipStatus);
 router.get('/gym/:gymId', protect, authorize('owner'), getGymMemberships);
-
-// Admin routes
+router.post('/verify', protect, verifyQR);
 router.get('/', protect, authorize('admin'), getAllMemberships);
 router.get('/:id', protect, getMembershipById);
+router.get('/:id/logs', protect, getEntryLogs);
 
 module.exports = router;

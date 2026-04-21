@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { membershipService } from '../../services/membershipService';
 import { gymService } from '../../services/gymService';
+import PaymentButton from '../../components/PaymentButton';
+import QRCodeDisplay from '../../components/QRCodeDisplay';
 import { 
   CreditCardIcon, 
   QrCodeIcon, 
@@ -20,9 +22,8 @@ const MyMemberships = () => {
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [selectedGym, setSelectedGym] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
-  const [buying, setBuying] = useState(false);
-  const [activeTab, setActiveTab] = useState('active');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('active');
 
   useEffect(() => {
     fetchData();
@@ -42,29 +43,6 @@ const MyMemberships = () => {
       toast.error('Failed to load memberships');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleBuy = async () => {
-    if (!selectedGym) {
-      toast.error('Please select a gym');
-      return;
-    }
-    
-    setBuying(true);
-    try {
-      await membershipService.createMembership({
-        gymId: selectedGym._id,
-        plan: selectedPlan,
-      });
-      toast.success('Membership purchased successfully!');
-      setShowBuyModal(false);
-      setSelectedGym(null);
-      setRefreshKey(prev => prev + 1);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to purchase membership');
-    } finally {
-      setBuying(false);
     }
   };
 
@@ -90,10 +68,10 @@ const MyMemberships = () => {
 
   const getPlanDetails = (plan) => {
     switch(plan) {
-      case 'monthly': return { name: 'Monthly', price: '$49', duration: '1 month' };
-      case 'quarterly': return { name: 'Quarterly', price: '$129', duration: '3 months' };
-      case 'yearly': return { name: 'Yearly', price: '$499', duration: '12 months' };
-      default: return { name: 'Unknown', price: '$0', duration: 'Unknown' };
+      case 'monthly': return { name: 'Monthly', price: '₹49', amount: 49, duration: '1 month' };
+      case 'quarterly': return { name: 'Quarterly', price: '₹129', amount: 129, duration: '3 months' };
+      case 'yearly': return { name: 'Yearly', price: '₹499', amount: 499, duration: '12 months' };
+      default: return { name: 'Unknown', price: '₹0', amount: 0, duration: 'Unknown' };
     }
   };
 
@@ -110,7 +88,7 @@ const MyMemberships = () => {
   if (loading) {
     return (
       <DashboardLayout title="My Memberships" role="user">
-        <div className="flex items-center justify-center min-h-100">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading memberships...</p>
@@ -185,7 +163,7 @@ const MyMemberships = () => {
                   const remainingDays = getRemainingDays(m.endDate);
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-green-500/30 hover:scale-105 transition">
-                      <div className="h-24 bg-linear-to-r from-green-600 to-emerald-600 p-4">
+                      <div className="h-24 bg-gradient-to-r from-green-600 to-emerald-600 p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
                             {m.gymId?.profilePic ? (
@@ -222,15 +200,13 @@ const MyMemberships = () => {
                         </div>
                         
                         <div className="flex gap-2 mt-4">
-                          {m.qrCode && (
-                            <button
-                              onClick={() => setSelectedQR(m.qrCode)}
-                              className="flex-1 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition flex items-center justify-center gap-1"
-                            >
-                              <QrCodeIcon className="w-4 h-4" />
-                              Show QR
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setSelectedQR(m.qrCode)}
+                            className="flex-1 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition flex items-center justify-center gap-1"
+                          >
+                            <QrCodeIcon className="w-4 h-4" />
+                            Show QR
+                          </button>
                           <button
                             onClick={() => handleCancel(m._id)}
                             className="flex-1 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition"
@@ -353,7 +329,7 @@ const MyMemberships = () => {
           </div>
         )}
 
-        {/* Buy Membership Tab */}
+        {/* Buy Membership Tab - WITH DISABLED CHECK */}
         {activeTab === 'buy' && (
           <div>
             <h3 className="text-white font-semibold mb-4">Choose a Gym</h3>
@@ -364,34 +340,54 @@ const MyMemberships = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {gyms.map((gym) => (
-                  <div
-                    key={gym._id}
-                    onClick={() => {
-                      setSelectedGym(gym);
-                      setShowBuyModal(true);
-                    }}
-                    className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10 cursor-pointer hover:border-purple-500 transition"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
-                        {gym.profilePic ? (
-                          <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <BuildingOfficeIcon className="w-6 h-6 text-white" />
-                        )}
+                {gyms.map((gym) => {
+                  const hasActive = activeMemberships.some(m => m.gymId?._id === gym._id);
+                  
+                  return (
+                    <div
+                      key={gym._id}
+                      onClick={() => {
+                        if (!hasActive) {
+                          setSelectedGym(gym);
+                          setShowBuyModal(true);
+                        } else {
+                          toast.error('You already have an active membership for this gym');
+                        }
+                      }}
+                      className={`bg-white/5 backdrop-blur-lg rounded-xl p-4 border cursor-pointer transition ${
+                        hasActive 
+                          ? 'border-green-500/50 opacity-60 cursor-not-allowed' 
+                          : 'border-white/10 hover:border-purple-500'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                          {gym.profilePic ? (
+                            <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-white font-semibold">{gym.name}</h4>
+                          <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-white font-semibold">{gym.name}</h4>
-                        <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Starting at</span>
+                        <span className="text-purple-400 font-bold">₹49/mo</span>
                       </div>
+                      {hasActive && (
+                        <div className="mt-2 text-center">
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center gap-1">
+                            <CheckCircleIcon className="w-3 h-3" />
+                            Already Purchased
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-xs text-gray-500">Starting at</span>
-                      <span className="text-purple-400 font-bold">$49/mo</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -400,16 +396,16 @@ const MyMemberships = () => {
         {/* QR Modal */}
         {selectedQR && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setSelectedQR(null)}>
-            <div className="bg-white p-6 rounded-xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Gym Access QR Code</h3>
-                <button onClick={() => setSelectedQR(null)} className="text-gray-500 hover:text-gray-700">
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="bg-gray-100 p-4 rounded-lg text-center">
-                <p className="text-gray-600 text-sm break-all font-mono">{selectedQR}</p>
-                <p className="text-gray-500 text-xs mt-2">Show this QR code at the gym entrance</p>
+            <div className="bg-gray-900 rounded-xl max-w-sm w-full mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-white">Gym Access QR Code</h3>
+                  <button onClick={() => setSelectedQR(null)} className="text-gray-400 hover:text-white">
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
+                </div>
+                <QRCodeDisplay value={selectedQR} size={250} />
+                <p className="text-gray-500 text-xs text-center mt-4">Show this code at the gym entrance</p>
               </div>
             </div>
           </div>
@@ -428,7 +424,7 @@ const MyMemberships = () => {
                 </div>
                 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden">
                     {selectedGym.profilePic ? (
                       <img src={selectedGym.profilePic} alt={selectedGym.name} className="w-full h-full object-cover" />
                     ) : (
@@ -464,20 +460,18 @@ const MyMemberships = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white/5 rounded-lg p-3 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Total Amount</span>
-                    <span className="text-white font-bold">{getPlanDetails(selectedPlan).price}</span>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={handleBuy}
-                  disabled={buying}
-                  className="w-full py-3 bg-purple-600 rounded-lg text-white font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-                >
-                  {buying ? 'Processing...' : `Pay ${getPlanDetails(selectedPlan).price}`}
-                </button>
+                <PaymentButton
+                  type="membership"
+                  itemId={selectedGym._id}
+                  plan={selectedPlan}
+                  amount={getPlanDetails(selectedPlan).amount}
+                  buttonText={`Pay ${getPlanDetails(selectedPlan).price}`}
+                  onSuccess={() => {
+                    setShowBuyModal(false);
+                    setSelectedGym(null);
+                    setRefreshKey(prev => prev + 1);
+                  }}
+                />
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { gymService } from '../../services/gymService';
 import { membershipService } from '../../services/membershipService';
+import PaymentButton from '../../components/PaymentButton';
 import GymMap from '../../components/GymMap';
 import LocationSearch from '../../components/LocationSearch';
 import { 
@@ -21,7 +22,7 @@ import {
 import toast from 'react-hot-toast';
 
 const GymDiscovery = () => {
-  const navigate = useNavigate();  // ✅ Add this
+  const navigate = useNavigate();
   const [gyms, setGyms] = useState([]);
   const [filteredGyms, setFilteredGyms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,6 @@ const GymDiscovery = () => {
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [selectedGymForMembership, setSelectedGymForMembership] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
-  const [buying, setBuying] = useState(false);
   const [userMemberships, setUserMemberships] = useState([]);
   
   const locationSearchRef = useRef(null);
@@ -202,41 +202,33 @@ const GymDiscovery = () => {
     return userMemberships.some(m => m.gymId?._id === gymId && m.status === 'active');
   };
 
-  const handleBuyMembership = (gym) => {
+  const handleBuyClick = async (gym) => {
     if (hasActiveMembership(gym._id)) {
       toast.error('You already have an active membership in this gym');
       return;
     }
+    
+    try {
+      const checkRes = await membershipService.checkMembershipStatus(gym._id);
+      if (checkRes.data.data.hasActive) {
+        toast.error('You already have an active membership in this gym');
+        fetchUserMemberships();
+        return;
+      }
+    } catch (err) {
+      console.error('Check failed:', err);
+    }
+    
     setSelectedGymForMembership(gym);
     setShowBuyModal(true);
   };
 
-  const handlePurchase = async () => {
-    if (!selectedGymForMembership) return;
-    
-    setBuying(true);
-    try {
-      await membershipService.createMembership({
-        gymId: selectedGymForMembership._id,
-        plan: selectedPlan,
-      });
-      toast.success('Membership purchased successfully!');
-      setShowBuyModal(false);
-      setSelectedGymForMembership(null);
-      fetchUserMemberships();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to purchase membership');
-    } finally {
-      setBuying(false);
-    }
-  };
-
   const getPlanDetails = (plan) => {
     switch(plan) {
-      case 'monthly': return { name: 'Monthly', price: '$49', duration: '1 month' };
-      case 'quarterly': return { name: 'Quarterly', price: '$129', duration: '3 months' };
-      case 'yearly': return { name: 'Yearly', price: '$499', duration: '12 months' };
-      default: return { name: 'Unknown', price: '$0', duration: 'Unknown' };
+      case 'monthly': return { name: 'Monthly', price: '₹49', amount: 49, duration: '1 month' };
+      case 'quarterly': return { name: 'Quarterly', price: '₹129', amount: 129, duration: '3 months' };
+      case 'yearly': return { name: 'Yearly', price: '₹499', amount: 499, duration: '12 months' };
+      default: return { name: 'Unknown', price: '₹0', amount: 0, duration: 'Unknown' };
     }
   };
 
@@ -272,7 +264,7 @@ const GymDiscovery = () => {
   if (loading && gyms.length === 0) {
     return (
       <DashboardLayout title="Find Gyms Near You" role="user">
-        <div className="flex items-center justify-center h-125">
+        <div className="flex items-center justify-center h-[500px]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading gyms...</p>
@@ -285,7 +277,6 @@ const GymDiscovery = () => {
   return (
     <DashboardLayout title="Find Gyms Near You" role="user">
       <div className="space-y-4">
-        {/* Search Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="relative" ref={locationSearchRef}>
             <div className="relative">
@@ -345,12 +336,11 @@ const GymDiscovery = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
           <button
             onClick={getUserLocation}
             disabled={gettingLocation}
-            className="px-5 py-2.5 bg-linear-to-r from-purple-600 to-blue-600 rounded-xl text-white font-medium hover:scale-105 transition flex items-center gap-2 disabled:opacity-50"
+            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-medium hover:scale-105 transition flex items-center gap-2 disabled:opacity-50"
           >
             {gettingLocation ? (
               <>
@@ -370,7 +360,6 @@ const GymDiscovery = () => {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="flex justify-between items-center">
           <p className="text-gray-400 text-sm">
             🏋️ Found <span className="text-purple-400 font-semibold">{filteredGyms.length}</span> gyms
@@ -383,7 +372,6 @@ const GymDiscovery = () => {
           )}
         </div>
 
-        {/* Map and Gym List */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-gray-900 sticky top-20">
@@ -405,7 +393,7 @@ const GymDiscovery = () => {
               </h3>
               <p className="text-gray-400 text-xs mt-1">Click on any gym to view on map</p>
             </div>
-            <div className="max-h-125 overflow-y-auto">
+            <div className="max-h-[500px] overflow-y-auto">
               {filteredGyms.length === 0 ? (
                 <div className="text-center py-12">
                   <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-500 mb-3" />
@@ -464,7 +452,7 @@ const GymDiscovery = () => {
                             </span>
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleBuyMembership(gym); }}
+                              onClick={(e) => { e.stopPropagation(); handleBuyClick(gym); }}
                               className="px-3 py-1 bg-green-600 rounded-lg text-white text-xs hover:bg-green-700 transition flex items-center gap-1 whitespace-nowrap"
                             >
                               <CreditCardIcon className="w-3 h-3" />
@@ -489,7 +477,7 @@ const GymDiscovery = () => {
         )}
       </div>
 
-      {/* Buy Membership Modal */}
+      {/* Buy Membership Modal with PaymentButton */}
       {showBuyModal && selectedGymForMembership && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowBuyModal(false)}>
           <div className="bg-gray-900 rounded-xl max-w-md w-full mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
@@ -502,7 +490,7 @@ const GymDiscovery = () => {
               </div>
               
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
                   {selectedGymForMembership.profilePic ? (
                     <img src={selectedGymForMembership.profilePic} alt={selectedGymForMembership.name} className="w-full h-full object-cover" />
                   ) : (
@@ -539,20 +527,18 @@ const GymDiscovery = () => {
                 </div>
               </div>
               
-              <div className="bg-white/5 rounded-lg p-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Total Amount</span>
-                  <span className="text-white font-bold">{getPlanDetails(selectedPlan).price}</span>
-                </div>
-              </div>
-              
-              <button
-                onClick={handlePurchase}
-                disabled={buying}
-                className="w-full py-3 bg-purple-600 rounded-lg text-white font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                {buying ? 'Processing...' : `Pay ${getPlanDetails(selectedPlan).price}`}
-              </button>
+              <PaymentButton
+                type="membership"
+                itemId={selectedGymForMembership._id}
+                plan={selectedPlan}
+                amount={getPlanDetails(selectedPlan).amount}
+                buttonText={`Pay ${getPlanDetails(selectedPlan).price}`}
+                onSuccess={() => {
+                  setShowBuyModal(false);
+                  setSelectedGymForMembership(null);
+                  fetchUserMemberships();
+                }}
+              />
             </div>
           </div>
         </div>

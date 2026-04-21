@@ -33,6 +33,7 @@ import AllSentRequests from "./pages/owner/AllSentRequests";
 import MyGyms from "./pages/trainer/MyGyms";
 import GymDetails from "./pages/GymDetails";
 import Chat from "./pages/Chat";
+import QRVerification from './pages/owner/QRVerification';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -65,7 +66,6 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
       <Route path="/gym-details/:id" element={<GymDetails />} />
-
       {/* User Routes */}
       <Route
         path="/user/dashboard"
@@ -131,7 +131,6 @@ function App() {
           </ProtectedRoute>
         }
       />
-
       {/* Trainer Routes */}
       <Route
         path="/trainer/dashboard"
@@ -229,8 +228,15 @@ function App() {
           </ProtectedRoute>
         }
       />
-
       {/* Owner Routes */}
+      <Route
+        path="/owner/qr-verification"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <QRVerification />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/owner/dashboard"
         element={

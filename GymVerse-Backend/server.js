@@ -36,6 +36,7 @@ app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/blogs', require('./routes/blogRoutes'));
 app.use('/api/trainers', require('./routes/trainerRoutes'));
 app.use('/api/chats', require('./routes/chatRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Gym Verse API Running 🚀' });

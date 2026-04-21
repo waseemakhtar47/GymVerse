@@ -16,7 +16,8 @@ import {
   PlusCircleIcon,
   BuildingOfficeIcon,
   BriefcaseIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  QrCodeIcon,
 } from '@heroicons/react/24/outline';
 
 const DashboardLayout = ({ children, title }) => {
@@ -64,6 +65,7 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'All Trainers', icon: UserGroupIcon, path: '/owner/trainers' },
         { name: 'Trainer Requests', icon: DocumentTextIcon, path: '/owner/trainer-requests' },
         { name: 'Sent Requests', icon: EnvelopeIcon, path: '/owner/sent-requests' },
+        { name: 'QR Verification', icon: QrCodeIcon, path: '/owner/qr-verification' }, 
       ],
     };
 
