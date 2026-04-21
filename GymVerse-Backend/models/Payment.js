@@ -44,7 +44,7 @@ const paymentSchema = new mongoose.Schema({
   },
   plan: {
     type: String,
-    enum: ['monthly', 'quarterly', 'yearly'],
+    // ✅ REMOVE enum completely - make it any string or null
     default: null,
   },
 }, {

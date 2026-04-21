@@ -8,6 +8,7 @@ const {
   enrollCourse,
   getMyEnrolledCourses,
   getMyCourses,
+  checkCourseAccess,
 } = require('../controllers/courseController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -24,5 +25,6 @@ router.delete('/:id', protect, deleteCourse);
 router.post('/:id/enroll', protect, authorize('user'), enrollCourse);
 router.get('/my/enrolled', protect, authorize('user'), getMyEnrolledCourses);
 router.get('/my/courses', protect, authorize('trainer'), getMyCourses);
+router.get('/:courseId/access', protect, checkCourseAccess);
 
 module.exports = router;

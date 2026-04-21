@@ -264,7 +264,7 @@ const GymDiscovery = () => {
   if (loading && gyms.length === 0) {
     return (
       <DashboardLayout title="Find Gyms Near You" role="user">
-        <div className="flex items-center justify-center h-[500px]">
+        <div className="flex items-center justify-center h-125">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading gyms...</p>
@@ -340,7 +340,7 @@ const GymDiscovery = () => {
           <button
             onClick={getUserLocation}
             disabled={gettingLocation}
-            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-medium hover:scale-105 transition flex items-center gap-2 disabled:opacity-50"
+            className="px-5 py-2.5 bg-linear-to-r from-purple-600 to-blue-600 rounded-xl text-white font-medium hover:scale-105 transition flex items-center gap-2 disabled:opacity-50"
           >
             {gettingLocation ? (
               <>
@@ -393,7 +393,7 @@ const GymDiscovery = () => {
               </h3>
               <p className="text-gray-400 text-xs mt-1">Click on any gym to view on map</p>
             </div>
-            <div className="max-h-[500px] overflow-y-auto">
+            <div className="max-h-125 overflow-y-auto">
               {filteredGyms.length === 0 ? (
                 <div className="text-center py-12">
                   <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-500 mb-3" />
@@ -490,7 +490,7 @@ const GymDiscovery = () => {
               </div>
               
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
                   {selectedGymForMembership.profilePic ? (
                     <img src={selectedGymForMembership.profilePic} alt={selectedGymForMembership.name} className="w-full h-full object-cover" />
                   ) : (

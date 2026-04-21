@@ -51,8 +51,25 @@ const courseSchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+        validUntil: {
+          type: Date,
+          default: () => {
+            const date = new Date();
+            date.setFullYear(date.getFullYear() + 1);
+            return date;
+          },
+        },
+        status: {
+          type: String,
+          enum: ['active', 'expired'],
+          default: 'active',
+        },
       },
     ],
+    validityDays: {
+      type: Number,
+      default: 365,
+    },
     isActive: {
       type: Boolean,
       default: true,

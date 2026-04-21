@@ -88,7 +88,7 @@ const MyMemberships = () => {
   if (loading) {
     return (
       <DashboardLayout title="My Memberships" role="user">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading memberships...</p>
@@ -163,7 +163,7 @@ const MyMemberships = () => {
                   const remainingDays = getRemainingDays(m.endDate);
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-green-500/30 hover:scale-105 transition">
-                      <div className="h-24 bg-gradient-to-r from-green-600 to-emerald-600 p-4">
+                      <div className="h-24 bg-linear-to-r from-green-600 to-emerald-600 p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
                             {m.gymId?.profilePic ? (
@@ -361,7 +361,7 @@ const MyMemberships = () => {
                       }`}
                     >
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
                           {gym.profilePic ? (
                             <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
                           ) : (
@@ -424,7 +424,7 @@ const MyMemberships = () => {
                 </div>
                 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden">
                     {selectedGym.profilePic ? (
                       <img src={selectedGym.profilePic} alt={selectedGym.name} className="w-full h-full object-cover" />
                     ) : (
