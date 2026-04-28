@@ -141,7 +141,7 @@ const EditCourse = () => {
   if (fetching) {
     return (
       <DashboardLayout title="Edit Course" role="trainer">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading course...</p>

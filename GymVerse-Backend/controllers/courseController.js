@@ -194,14 +194,27 @@ const checkCourseAccess = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found' });
     }
     
+    // ✅ GRANT ACCESS TO TRAINER WHO OWN THE COURSE
+    if (req.user.role === 'trainer' && course.trainerId.toString() === req.user.id) {
+      return res.json({
+        success: true,
+        data: {
+          hasAccess: true,
+          isOwner: true,
+          message: 'You are the course owner'
+        }
+      });
+    }
+    
+    // For users / other roles, check enrollment
     const enrollment = course.enrolledUsers?.find(
       u => u.userId.toString() === req.user.id
     );
     
     if (!enrollment) {
-      return res.json({ 
-        success: true, 
-        data: { hasAccess: false, reason: 'Not enrolled' } 
+      return res.json({
+        success: true,
+        data: { hasAccess: false, reason: 'Not enrolled' }
       });
     }
     
@@ -215,8 +228,8 @@ const checkCourseAccess = async (req, res) => {
     
     const daysRemaining = Math.ceil((new Date(enrollment.validUntil) - now) / (1000 * 60 * 60 * 24));
     
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         hasAccess: isValid,
         enrolledAt: enrollment.enrolledAt,

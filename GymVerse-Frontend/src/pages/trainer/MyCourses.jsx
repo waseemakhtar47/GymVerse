@@ -41,7 +41,7 @@ const MyCourses = () => {
   if (loading) {
     return (
       <DashboardLayout title="My Courses" role="trainer">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading courses...</p>
@@ -80,7 +80,7 @@ const MyCourses = () => {
                     className="w-full h-40 object-cover"
                   />
                 ) : (
-                  <div className="h-40 bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                  <div className="h-40 bg-linear-to-r from-purple-600 to-blue-600 flex items-center justify-center">
                     <VideoCameraIcon className="w-12 h-12 text-white/50" />
                   </div>
                 )}

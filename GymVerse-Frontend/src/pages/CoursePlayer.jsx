@@ -16,7 +16,9 @@ import {
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
   BackwardIcon,
-  ForwardIcon
+  ForwardIcon,
+  VideoCameraIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -35,6 +37,7 @@ const CoursePlayer = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [accessInfo, setAccessInfo] = useState(null);
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -42,8 +45,10 @@ const CoursePlayer = () => {
 
   useEffect(() => {
     fetchCourseData();
-    checkAccess();
-  }, [courseId]);
+    if (user) {
+      checkAccess();
+    }
+  }, [courseId, user]);
 
   const fetchCourseData = async () => {
     try {
@@ -63,20 +68,22 @@ const CoursePlayer = () => {
       const res = await courseService.checkCourseAccess(courseId);
       const accessData = res.data.data;
       setHasAccess(accessData.hasAccess);
+      setIsOwner(accessData.isOwner || false);
       setAccessInfo(accessData);
       
-      if (!accessData.hasAccess) {
+      if (!accessData.hasAccess && !accessData.isOwner) {
         toast.error(accessData.reason || 'You do not have access to this course');
       }
     } catch (error) {
       console.error('Failed to check access:', error);
       setHasAccess(false);
+      setIsOwner(false);
     }
   };
 
   // Video controls
   const togglePlay = () => {
-    if (!hasAccess) {
+    if (!hasAccess && !isOwner) {
       toast.error('You do not have access to this course');
       return;
     }
@@ -94,7 +101,6 @@ const CoursePlayer = () => {
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
-      // Update progress bar
       if (progressBarRef.current) {
         const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
         progressBarRef.current.style.width = `${progress}%`;
@@ -188,7 +194,6 @@ const CoursePlayer = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Listen for fullscreen change
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -216,15 +221,30 @@ const CoursePlayer = () => {
     );
   }
 
+  const canAccess = hasAccess || isOwner;
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="bg-gray-900/50 backdrop-blur-lg border-b border-white/10 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
-            <ArrowLeftIcon className="w-5 h-5" />
-            Back
-          </button>
+          <div className="flex justify-between items-center">
+            <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
+              <ArrowLeftIcon className="w-5 h-5" />
+              Back
+            </button>
+            
+            {/* ✅ Edit button for trainer/owner */}
+            {isOwner && (
+              <button
+                onClick={() => navigate(`/trainer/edit-course/${courseId}`)}
+                className="px-4 py-2 bg-green-600 rounded-lg text-white text-sm hover:bg-green-700 transition flex items-center gap-2"
+              >
+                <PencilIcon className="w-4 h-4" />
+                Edit Course
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -233,7 +253,7 @@ const CoursePlayer = () => {
           {/* Video Player Section */}
           <div className="lg:col-span-2">
             <div ref={containerRef} className="bg-black rounded-xl overflow-hidden">
-              {hasAccess ? (
+              {canAccess ? (
                 <>
                   <video
                     ref={videoRef}
@@ -265,7 +285,6 @@ const CoursePlayer = () => {
                     {/* Controls Row */}
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        {/* Play/Pause */}
                         <button
                           onClick={togglePlay}
                           className="p-2 hover:bg-white/10 rounded-lg transition"
@@ -273,7 +292,6 @@ const CoursePlayer = () => {
                           {isPlaying ? <PauseIcon className="w-5 h-5 text-white" /> : <PlayIcon className="w-5 h-5 text-white" />}
                         </button>
                         
-                        {/* Skip Backward */}
                         <button
                           onClick={skipBackward}
                           className="p-2 hover:bg-white/10 rounded-lg transition"
@@ -281,7 +299,6 @@ const CoursePlayer = () => {
                           <BackwardIcon className="w-5 h-5 text-white" />
                         </button>
                         
-                        {/* Skip Forward */}
                         <button
                           onClick={skipForward}
                           className="p-2 hover:bg-white/10 rounded-lg transition"
@@ -289,7 +306,6 @@ const CoursePlayer = () => {
                           <ForwardIcon className="w-5 h-5 text-white" />
                         </button>
                         
-                        {/* Volume */}
                         <div className="flex items-center gap-2">
                           <button
                             onClick={toggleMute}
@@ -308,14 +324,12 @@ const CoursePlayer = () => {
                           />
                         </div>
                         
-                        {/* Time Display */}
                         <div className="text-gray-400 text-sm ml-2">
                           {formatTime(currentTime)} / {formatTime(duration)}
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        {/* Playback Speed */}
                         <div className="relative">
                           <button
                             onClick={() => setShowSpeedMenu(!showSpeedMenu)}
@@ -340,7 +354,6 @@ const CoursePlayer = () => {
                           )}
                         </div>
                         
-                        {/* Fullscreen */}
                         <button
                           onClick={toggleFullscreen}
                           className="p-2 hover:bg-white/10 rounded-lg transition"
@@ -374,7 +387,7 @@ const CoursePlayer = () => {
             <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
               <h1 className="text-2xl font-bold text-white mb-2">{course.title}</h1>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center">
                   <UserIcon className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-gray-300">By {course.trainerId?.name}</span>
@@ -397,27 +410,47 @@ const CoursePlayer = () => {
             </div>
 
             {/* Access Status */}
-            <div className={`rounded-xl p-4 border ${hasAccess ? 'bg-green-500/10 border-green-500' : 'bg-red-500/10 border-red-500'}`}>
-              <div className="flex items-center gap-2">
-                {hasAccess ? (
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                ) : (
-                  <ExclamationTriangleIcon className="w-5 h-5 text-red-400" />
-                )}
-                <div>
-                  <p className={`font-semibold ${hasAccess ? 'text-green-400' : 'text-red-400'}`}>
-                    {hasAccess ? 'Access Granted' : 'Access Denied'}
-                  </p>
-                  {accessInfo && hasAccess && (
+            {isOwner ? (
+              <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-500">
+                <div className="flex items-center gap-2">
+                  <VideoCameraIcon className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="font-semibold text-blue-400">Course Owner Access</p>
                     <p className="text-gray-400 text-sm mt-1">
-                      Valid until: {new Date(accessInfo.validUntil).toLocaleDateString()}
-                      <br />
-                      {accessInfo.daysRemaining} days remaining
+                      You are the creator of this course. Full access granted.
                     </p>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : hasAccess ? (
+              <div className="bg-green-500/10 rounded-xl p-4 border border-green-500">
+                <div className="flex items-center gap-2">
+                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                  <div>
+                    <p className="font-semibold text-green-400">Access Granted</p>
+                    {accessInfo && (
+                      <p className="text-gray-400 text-sm mt-1">
+                        Valid until: {new Date(accessInfo.validUntil).toLocaleDateString()}
+                        <br />
+                        {accessInfo.daysRemaining} days remaining
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-red-500/10 rounded-xl p-4 border border-red-500">
+                <div className="flex items-center gap-2">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-red-400" />
+                  <div>
+                    <p className="font-semibold text-red-400">Access Denied</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      You need to purchase this course to access it.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">

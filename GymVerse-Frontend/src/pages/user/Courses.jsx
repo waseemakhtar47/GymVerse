@@ -52,7 +52,7 @@ const Courses = () => {
   if (loading) {
     return (
       <DashboardLayout title="Courses" role="user">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading courses...</p>
@@ -107,7 +107,7 @@ const Courses = () => {
                       className="w-full h-48 object-cover"
                     />
                   ) : (
-                    <div className="h-48 bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                    <div className="h-48 bg-linear-to-r from-purple-600 to-blue-600 flex items-center justify-center">
                       <VideoCameraIcon className="w-12 h-12 text-white/50" />
                     </div>
                   )}
@@ -127,7 +127,7 @@ const Courses = () => {
                     </h3>
 
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
                         {course.trainerId?.profilePic ? (
                           <img
                             src={course.trainerId.profilePic}
@@ -218,7 +218,7 @@ const Courses = () => {
                       key={course._id}
                       className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-white/10"
                     >
-                      <div className="h-32 bg-gradient-to-r from-purple-600 to-blue-600 p-4">
+                      <div className="h-32 bg-linear-to-r from-purple-600 to-blue-600 p-4">
                         <h3 className="text-white font-bold text-lg">
                           {course.title}
                         </h3>
