@@ -16,7 +16,21 @@ try {
   console.error("❌ Razorpay init error:", error.message);
 }
 
-const getAmountAndPrice = (plan) => {
+const getAmountAndPrice = async (gymId, plan) => {
+  const gym = await Gym.findById(gymId);
+  if (gym && gym.pricing) {
+    switch (plan) {
+      case "monthly":
+        return { amount: gym.pricing.monthly * 100, price: gym.pricing.monthly };
+      case "quarterly":
+        return { amount: gym.pricing.quarterly * 100, price: gym.pricing.quarterly };
+      case "yearly":
+        return { amount: gym.pricing.yearly * 100, price: gym.pricing.yearly };
+      default:
+        return { amount: 4999, price: 49 };
+    }
+  }
+  // Fallback defaults
   switch (plan) {
     case "monthly":
       return { amount: 4999, price: 49 };
@@ -29,7 +43,6 @@ const getAmountAndPrice = (plan) => {
   }
 };
 
-// @desc    Create order for membership
 const createMembershipOrder = async (req, res) => {
   try {
     const { gymId, plan } = req.body;
@@ -45,7 +58,7 @@ const createMembershipOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Gym not found" });
     }
 
-    const { amount, price } = getAmountAndPrice(plan);
+    const { amount, price } = await getAmountAndPrice(gymId, plan);
 
     const shortGymId = gymId.slice(-8);
     const timestamp = Date.now().toString().slice(-8);
@@ -198,7 +211,21 @@ const verifyPayment = async (req, res) => {
     }
 
     if (type === "membership") {
-      const { price } = getAmountAndPrice(plan);
+      // ✅ Get gym to fetch its pricing
+      const gym = await Gym.findById(itemId);
+      
+      let price = 49; // default
+      if (gym && gym.pricing) {
+        switch(plan) {
+          case 'monthly': price = gym.pricing.monthly || 49; break;
+          case 'quarterly': price = gym.pricing.quarterly || 129; break;
+          case 'yearly': price = gym.pricing.yearly || 499; break;
+        }
+      } else {
+        const { price: defaultPrice } = await getAmountAndPrice(itemId, plan);
+        price = defaultPrice;
+      }
+      
       const startDate = new Date();
       let endDate = new Date();
 
@@ -235,7 +262,7 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-    // Update the verifyPayment function's course section
+    // Rest of the function remains the same...
     else if (type === "course") {
       const course = await Course.findById(itemId);
       if (course) {

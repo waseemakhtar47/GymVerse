@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { gymService } from '../../services/gymService';
+import { CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const CreateGym = () => {
@@ -20,6 +21,12 @@ const CreateGym = () => {
     },
     facilities: [],
     contactNumber: '',
+    // ✅ NEW: Pricing
+    pricing: {
+      monthly: 49,
+      quarterly: 129,
+      yearly: 499,
+    },
   });
   const [facilityInput, setFacilityInput] = useState('');
 
@@ -51,6 +58,16 @@ const CreateGym = () => {
     setFormData({
       ...formData,
       facilities: formData.facilities.filter(f => f !== facility)
+    });
+  };
+
+  const updatePricing = (plan, value) => {
+    setFormData({
+      ...formData,
+      pricing: {
+        ...formData.pricing,
+        [plan]: parseFloat(value) || 0
+      }
     });
   };
 
@@ -125,6 +142,58 @@ const CreateGym = () => {
               onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
               className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
+          </div>
+
+          {/* ✅ NEW: Pricing Section */}
+          <div>
+            <label className="block text-white mb-2 items-center gap-2">
+              <CurrencyDollarIcon className="w-5 h-5 text-purple-400" />
+              Membership Pricing (₹)
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Monthly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.monthly}
+                  onChange={(e) => updatePricing('monthly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="₹49"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 1 month</p>
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Quarterly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.quarterly}
+                  onChange={(e) => updatePricing('quarterly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="₹129"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 3 months</p>
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Yearly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.yearly}
+                  onChange={(e) => updatePricing('yearly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="₹499"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 12 months</p>
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs mt-2">
+              💡 Set competitive prices for your gym memberships. These prices will be shown to users when they purchase membership.
+            </p>
           </div>
 
           <div>

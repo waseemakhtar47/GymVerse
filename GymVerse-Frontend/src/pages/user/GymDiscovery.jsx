@@ -150,7 +150,6 @@ const GymDiscovery = () => {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        console.log('📍 YOUR EXACT LOCATION:', location);
         setUserLocation(location);
         setMapCenter(location);
         fetchNearbyGyms(location.lng, location.lat);
@@ -223,13 +222,46 @@ const GymDiscovery = () => {
     setShowBuyModal(true);
   };
 
-  const getPlanDetails = (plan) => {
-    switch(plan) {
-      case 'monthly': return { name: 'Monthly', price: '₹49', amount: 49, duration: '1 month' };
-      case 'quarterly': return { name: 'Quarterly', price: '₹129', amount: 129, duration: '3 months' };
-      case 'yearly': return { name: 'Yearly', price: '₹499', amount: 499, duration: '12 months' };
-      default: return { name: 'Unknown', price: '₹0', amount: 0, duration: 'Unknown' };
+  const getPlanDetails = (plan, gym = null) => {
+    let price = 49;
+    let amount = 49;
+    
+    if (gym && gym.pricing) {
+      switch(plan) {
+        case 'monthly':
+          price = gym.pricing.monthly || 49;
+          amount = price;
+          break;
+        case 'quarterly':
+          price = gym.pricing.quarterly || 129;
+          amount = price;
+          break;
+        case 'yearly':
+          price = gym.pricing.yearly || 499;
+          amount = price;
+          break;
+        default:
+          price = 49;
+          amount = 49;
+      }
+    } else {
+      switch(plan) {
+        case 'monthly': price = 49; amount = 49; break;
+        case 'quarterly': price = 129; amount = 129; break;
+        case 'yearly': price = 499; amount = 499; break;
+        default: price = 49; amount = 49;
+      }
     }
+    
+    const names = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+    const durations = { monthly: '1 month', quarterly: '3 months', yearly: '12 months' };
+    
+    return { 
+      name: names[plan], 
+      price: `₹${price}`, 
+      amount: amount, 
+      duration: durations[plan] 
+    };
   };
 
   const handleViewDetails = (gym) => {
@@ -435,6 +467,13 @@ const GymDiscovery = () => {
                             <UserIcon className="w-3 h-3" />
                             <span>Owner: {gym.ownerId?.name || 'Unknown'}</span>
                           </div>
+                          
+                          {/* Show pricing summary */}
+                          {gym.pricing && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <span className="text-xs text-purple-400">Starting from ₹{gym.pricing.monthly}/mo</span>
+                            </div>
+                          )}
                         </div>
                         <div className="ml-3 flex flex-col gap-2">
                           <button
@@ -477,7 +516,7 @@ const GymDiscovery = () => {
         )}
       </div>
 
-      {/* Buy Membership Modal with PaymentButton */}
+      {/* Buy Membership Modal with Pricing from Gym */}
       {showBuyModal && selectedGymForMembership && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowBuyModal(false)}>
           <div className="bg-gray-900 rounded-xl max-w-md w-full mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
@@ -508,7 +547,7 @@ const GymDiscovery = () => {
                 <label className="text-gray-400 text-sm block mb-2">Select Plan</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['monthly', 'quarterly', 'yearly'].map((plan) => {
-                    const details = getPlanDetails(plan);
+                    const details = getPlanDetails(plan, selectedGymForMembership);
                     return (
                       <button
                         key={plan}
@@ -520,7 +559,8 @@ const GymDiscovery = () => {
                         }`}
                       >
                         <p className="text-white font-semibold text-sm">{details.name}</p>
-                        <p className="text-purple-400 text-xs">{details.price}</p>
+                        <p className="text-purple-400 text-xs font-bold">{details.price}</p>
+                        <p className="text-gray-500 text-xs mt-1">{details.duration}</p>
                       </button>
                     );
                   })}
@@ -531,8 +571,8 @@ const GymDiscovery = () => {
                 type="membership"
                 itemId={selectedGymForMembership._id}
                 plan={selectedPlan}
-                amount={getPlanDetails(selectedPlan).amount}
-                buttonText={`Pay ${getPlanDetails(selectedPlan).price}`}
+                amount={getPlanDetails(selectedPlan, selectedGymForMembership).amount}
+                buttonText={`Pay ${getPlanDetails(selectedPlan, selectedGymForMembership).price}`}
                 onSuccess={() => {
                   setShowBuyModal(false);
                   setSelectedGymForMembership(null);

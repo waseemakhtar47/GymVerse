@@ -21,22 +21,28 @@ const createMembership = async (req, res) => {
       });
     }
     
-    // Calculate plan details
+    // ✅ Get gym to fetch its pricing
+    const gym = await Gym.findById(gymId);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    // Calculate plan details - USE GYM'S PRICING or fallback to defaults
     let endDate = new Date();
     let price = 0;
     
     switch(plan) {
       case 'monthly':
         endDate.setMonth(endDate.getMonth() + 1);
-        price = 49;
+        price = gym.pricing?.monthly || 49;
         break;
       case 'quarterly':
         endDate.setMonth(endDate.getMonth() + 3);
-        price = 129;
+        price = gym.pricing?.quarterly || 129;
         break;
       case 'yearly':
         endDate.setFullYear(endDate.getFullYear() + 1);
-        price = 499;
+        price = gym.pricing?.yearly || 499;
         break;
       default:
         return res.status(400).json({ success: false, message: 'Invalid plan' });
@@ -151,12 +157,42 @@ const verifyQR = async (req, res) => {
     
     const [membershipId, userId, gymId] = parts;
     
+    // ✅ CRITICAL FIX: Check if this gym belongs to the logged-in owner
+    const gym = await Gym.findById(gymId);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    // ✅ Owner can only verify members of their OWN gym
+    if (req.user.role === 'owner' && gym.ownerId.toString() !== req.user.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You can only verify members of your own gyms' 
+      });
+    }
+    
+    // For admin, allow all (optional)
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only gym owners and admins can verify QR codes' 
+      });
+    }
+    
     const membership = await Membership.findById(membershipId)
       .populate('userId', 'name email profilePic phone')
       .populate('gymId', 'name address');
     
     if (!membership) {
       return res.status(404).json({ success: false, message: 'Invalid membership QR code' });
+    }
+    
+    // ✅ Additional check: Membership's gym must match the gym from QR code
+    if (membership.gymId._id.toString() !== gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'QR code does not match this gym' 
+      });
     }
     
     if (membership.status !== 'active') {

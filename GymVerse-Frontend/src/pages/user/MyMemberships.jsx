@@ -57,28 +57,53 @@ const MyMemberships = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'active': return 'text-green-400 bg-green-500/20';
-      case 'expired': return 'text-red-400 bg-red-500/20';
-      case 'cancelled': return 'text-gray-400 bg-gray-500/20';
-      default: return 'text-gray-400 bg-gray-500/20';
-    }
-  };
-
-  const getPlanDetails = (plan) => {
-    switch(plan) {
-      case 'monthly': return { name: 'Monthly', price: '₹49', amount: 49, duration: '1 month' };
-      case 'quarterly': return { name: 'Quarterly', price: '₹129', amount: 129, duration: '3 months' };
-      case 'yearly': return { name: 'Yearly', price: '₹499', amount: 499, duration: '12 months' };
-      default: return { name: 'Unknown', price: '₹0', amount: 0, duration: 'Unknown' };
-    }
-  };
-
   const getRemainingDays = (endDate) => {
     const remaining = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
     if (remaining < 0) return 0;
     return remaining;
+  };
+
+  // Get plan details from gym pricing (for buy modal only)
+  const getPlanDetails = (plan, gym = null) => {
+    let price = 49;
+    let amount = 49;
+    
+    if (gym && gym.pricing) {
+      switch(plan) {
+        case 'monthly':
+          price = gym.pricing.monthly || 49;
+          amount = price;
+          break;
+        case 'quarterly':
+          price = gym.pricing.quarterly || 129;
+          amount = price;
+          break;
+        case 'yearly':
+          price = gym.pricing.yearly || 499;
+          amount = price;
+          break;
+        default:
+          price = 49;
+          amount = 49;
+      }
+    } else {
+      switch(plan) {
+        case 'monthly': price = 49; amount = 49; break;
+        case 'quarterly': price = 129; amount = 129; break;
+        case 'yearly': price = 499; amount = 499; break;
+        default: price = 49; amount = 49;
+      }
+    }
+    
+    const names = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+    const durations = { monthly: '1 month', quarterly: '3 months', yearly: '12 months' };
+    
+    return { 
+      name: names[plan], 
+      price: `₹${price}`, 
+      amount: amount, 
+      duration: durations[plan] 
+    };
   };
 
   const activeMemberships = memberships.filter(m => m.status === 'active');
@@ -141,7 +166,7 @@ const MyMemberships = () => {
           </button>
         </div>
 
-        {/* Active Memberships Tab */}
+        {/* Active Memberships Tab - Shows paymentAmount from database */}
         {activeTab === 'active' && (
           <div>
             {activeMemberships.length === 0 ? (
@@ -159,8 +184,11 @@ const MyMemberships = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeMemberships.map((m) => {
-                  const plan = getPlanDetails(m.plan);
+                  const planName = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
                   const remainingDays = getRemainingDays(m.endDate);
+                  // ✅ Database se stored payment amount
+                  const paidAmount = m.paymentAmount || 0;
+                  
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-green-500/30 hover:scale-105 transition">
                       <div className="h-24 bg-linear-to-r from-green-600 to-emerald-600 p-4">
@@ -174,7 +202,7 @@ const MyMemberships = () => {
                           </div>
                           <div>
                             <h3 className="text-white font-bold text-lg">{m.gymId?.name || 'Gym'}</h3>
-                            <p className="text-white/80 text-sm">{plan.name} Plan</p>
+                            <p className="text-white/80 text-sm">{planName[m.plan]} Plan</p>
                           </div>
                         </div>
                       </div>
@@ -182,7 +210,7 @@ const MyMemberships = () => {
                       <div className="p-4 space-y-3">
                         <div className="flex justify-between">
                           <span className="text-gray-400">Amount</span>
-                          <span className="text-white font-semibold">{plan.price}</span>
+                          <span className="text-white font-semibold">₹{paidAmount}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Start Date</span>
@@ -234,41 +262,48 @@ const MyMemberships = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {expiredMemberships.map((m) => (
-                  <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-red-500/30">
-                    <div className="h-20 bg-gray-700 p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
-                          {m.gymId?.profilePic ? (
-                            <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <BuildingOfficeIcon className="w-4 h-4 text-white" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-white font-bold">{m.gymId?.name}</h3>
-                          <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                {expiredMemberships.map((m) => {
+                  const paidAmount = m.paymentAmount || 0;
+                  return (
+                    <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-red-500/30">
+                      <div className="h-20 bg-gray-700 p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
+                            {m.gymId?.profilePic ? (
+                              <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-bold">{m.gymId?.name}</h3>
+                            <p className="text-gray-400 text-sm">{m.plan} Plan</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex justify-between mb-2">
-                        <span className="text-gray-400">Expired on</span>
-                        <span className="text-red-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
+                      <div className="p-4">
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-400">Paid Amount</span>
+                          <span className="text-white">₹{paidAmount}</span>
+                        </div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-400">Expired on</span>
+                          <span className="text-red-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedGym(m.gymId);
+                            setSelectedPlan(m.plan);
+                            setShowBuyModal(true);
+                          }}
+                          className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                        >
+                          Renew Now
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedGym(m.gymId);
-                          setSelectedPlan(m.plan);
-                          setShowBuyModal(true);
-                        }}
-                        className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
-                      >
-                        Renew Membership
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -285,51 +320,58 @@ const MyMemberships = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cancelledMemberships.map((m) => (
-                  <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-gray-500/30 opacity-80">
-                    <div className="h-20 bg-gray-800 p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
-                          {m.gymId?.profilePic ? (
-                            <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <BuildingOfficeIcon className="w-4 h-4 text-white" />
-                          )}
+                {cancelledMemberships.map((m) => {
+                  const paidAmount = m.paymentAmount || 0;
+                  return (
+                    <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-gray-500/30 opacity-80">
+                      <div className="h-20 bg-gray-800 p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
+                            {m.gymId?.profilePic ? (
+                              <img src={m.gymId.profilePic} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
+                            <p className="text-gray-400 text-sm">{m.plan} Plan</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
-                          <p className="text-gray-400 text-sm">{getPlanDetails(m.plan).name} Plan</p>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-400">Paid Amount</span>
+                          <span className="text-white">₹{paidAmount}</span>
                         </div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-400">Cancelled on</span>
+                          <span className="text-gray-400 text-sm">{new Date(m.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between mb-3">
+                          <span className="text-gray-400">Original End Date</span>
+                          <span className="text-gray-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedGym(m.gymId);
+                            setSelectedPlan(m.plan);
+                            setShowBuyModal(true);
+                          }}
+                          className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                        >
+                          Buy New
+                        </button>
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="flex justify-between mb-2">
-                        <span className="text-gray-400">Cancelled on</span>
-                        <span className="text-gray-400 text-sm">{new Date(m.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex justify-between mb-3">
-                        <span className="text-gray-400">Original End Date</span>
-                        <span className="text-gray-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedGym(m.gymId);
-                          setSelectedPlan(m.plan);
-                          setShowBuyModal(true);
-                        }}
-                        className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
-                      >
-                        Buy New Membership
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
-        {/* Buy Membership Tab - WITH DISABLED CHECK */}
+        {/* Buy Membership Tab */}
         {activeTab === 'buy' && (
           <div>
             <h3 className="text-white font-semibold mb-4">Choose a Gym</h3>
@@ -342,6 +384,7 @@ const MyMemberships = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {gyms.map((gym) => {
                   const hasActive = activeMemberships.some(m => m.gymId?._id === gym._id);
+                  const monthlyPrice = gym.pricing?.monthly || 49;
                   
                   return (
                     <div
@@ -373,12 +416,28 @@ const MyMemberships = () => {
                           <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Starting at</span>
-                        <span className="text-purple-400 font-bold">₹49/mo</span>
+                      
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Monthly</span>
+                          <span className="text-purple-400 font-bold">₹{monthlyPrice}</span>
+                        </div>
+                        {gym.pricing?.quarterly && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Quarterly</span>
+                            <span className="text-purple-400">₹{gym.pricing.quarterly}</span>
+                          </div>
+                        )}
+                        {gym.pricing?.yearly && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Yearly</span>
+                            <span className="text-purple-400">₹{gym.pricing.yearly}</span>
+                          </div>
+                        )}
                       </div>
+                      
                       {hasActive && (
-                        <div className="mt-2 text-center">
+                        <div className="mt-3 text-center">
                           <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center gap-1">
                             <CheckCircleIcon className="w-3 h-3" />
                             Already Purchased
@@ -441,7 +500,7 @@ const MyMemberships = () => {
                   <label className="text-gray-400 text-sm block mb-2">Select Plan</label>
                   <div className="grid grid-cols-3 gap-2">
                     {['monthly', 'quarterly', 'yearly'].map((plan) => {
-                      const details = getPlanDetails(plan);
+                      const details = getPlanDetails(plan, selectedGym);
                       return (
                         <button
                           key={plan}
@@ -453,7 +512,8 @@ const MyMemberships = () => {
                           }`}
                         >
                           <p className="text-white font-semibold text-sm">{details.name}</p>
-                          <p className="text-purple-400 text-xs">{details.price}</p>
+                          <p className="text-purple-400 text-xs font-bold">{details.price}</p>
+                          <p className="text-gray-500 text-xs mt-1">{details.duration}</p>
                         </button>
                       );
                     })}
@@ -464,8 +524,8 @@ const MyMemberships = () => {
                   type="membership"
                   itemId={selectedGym._id}
                   plan={selectedPlan}
-                  amount={getPlanDetails(selectedPlan).amount}
-                  buttonText={`Pay ${getPlanDetails(selectedPlan).price}`}
+                  amount={getPlanDetails(selectedPlan, selectedGym).amount}
+                  buttonText={`Pay ${getPlanDetails(selectedPlan, selectedGym).price}`}
                   onSuccess={() => {
                     setShowBuyModal(false);
                     setSelectedGym(null);

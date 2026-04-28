@@ -39,16 +39,23 @@ const gymSchema = new mongoose.Schema(
     facilities: [String],
     contactNumber: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
+    
+    // ✅ NEW: Pricing for membership plans
+    pricing: {
+      monthly: { type: Number, default: 49 },
+      quarterly: { type: Number, default: 129 },
+      yearly: { type: Number, default: 499 },
+    },
 
-    // ✅ NEW: Associated trainers
-trainers: [
-  {
-    trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    joinedAt: { type: Date, default: Date.now },
-    source: { type: String, enum: ['trainer', 'owner'], default: 'trainer' },
-  }
-],
+    // Associated trainers
+    trainers: [
+      {
+        trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        joinedAt: { type: Date, default: Date.now },
+        source: { type: String, enum: ['trainer', 'owner'], default: 'trainer' },
+      }
+    ],
   },
   { timestamps: true },
 );

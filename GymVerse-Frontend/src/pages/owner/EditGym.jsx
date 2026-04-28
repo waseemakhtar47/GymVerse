@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { gymService } from '../../services/gymService';
+import { CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const EditGym = () => {
@@ -17,6 +18,11 @@ const EditGym = () => {
     timings: { open: '06:00', close: '22:00' },
     facilities: [],
     contactNumber: '',
+    pricing: {
+      monthly: 49,
+      quarterly: 129,
+      yearly: 499,
+    },
   });
   const [facilityInput, setFacilityInput] = useState('');
 
@@ -36,6 +42,7 @@ const EditGym = () => {
         timings: gym.timings || { open: '06:00', close: '22:00' },
         facilities: gym.facilities || [],
         contactNumber: gym.contactNumber || '',
+        pricing: gym.pricing || { monthly: 49, quarterly: 129, yearly: 499 },
       });
     } catch (error) {
       toast.error('Failed to load gym');
@@ -73,6 +80,16 @@ const EditGym = () => {
     setFormData({
       ...formData,
       facilities: formData.facilities.filter(f => f !== facility)
+    });
+  };
+
+  const updatePricing = (plan, value) => {
+    setFormData({
+      ...formData,
+      pricing: {
+        ...formData.pricing,
+        [plan]: parseFloat(value) || 0
+      }
     });
   };
 
@@ -157,6 +174,55 @@ const EditGym = () => {
             />
           </div>
 
+          {/* Pricing Section */}
+          <div>
+            <label className="block text-white mb-2 items-center gap-2">
+              <CurrencyDollarIcon className="w-5 h-5 text-purple-400" />
+              Membership Pricing (₹)
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Monthly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.monthly}
+                  onChange={(e) => updatePricing('monthly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 1 month</p>
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Quarterly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.quarterly}
+                  onChange={(e) => updatePricing('quarterly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 3 months</p>
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Yearly Plan</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.pricing.yearly}
+                  onChange={(e) => updatePricing('yearly', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-gray-500 text-xs mt-1">Price for 12 months</p>
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs mt-2">
+              💡 These prices will be shown to users when purchasing membership
+            </p>
+          </div>
+
           <div>
             <label className="block text-white mb-2">Facilities</label>
             <div className="flex gap-2 mb-2">
@@ -180,6 +246,35 @@ const EditGym = () => {
                 </span>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Location (Coordinates)</label>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="number"
+                step="any"
+                placeholder="Longitude (e.g., 77.5946)"
+                value={formData.location.coordinates[0]}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  location: { coordinates: [parseFloat(e.target.value), formData.location.coordinates[1]] }
+                })}
+                className="px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <input
+                type="number"
+                step="any"
+                placeholder="Latitude (e.g., 12.9716)"
+                value={formData.location.coordinates[1]}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  location: { coordinates: [formData.location.coordinates[0], parseFloat(e.target.value)] }
+                })}
+                className="px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <p className="text-gray-400 text-xs mt-1">Get coordinates from Google Maps</p>
           </div>
 
           <button
