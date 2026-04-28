@@ -244,6 +244,8 @@ const checkCourseAccess = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
   createCourse,
   getAllCourses,

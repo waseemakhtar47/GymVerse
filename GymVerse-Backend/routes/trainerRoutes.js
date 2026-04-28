@@ -16,6 +16,7 @@ const {
   getMyGyms,
   leaveGym,
   getApprovedGymIds,
+  getTrainerStudents,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -36,6 +37,7 @@ router.get('/my-applications', protect, authorize('trainer'), getMyApplications)
 router.get('/my-requests', protect, authorize('trainer'), getMyRequests);
 router.put('/requests/:requestId', protect, authorize('trainer'), updateRequestStatus);
 router.post('/apply/:gymId', protect, authorize('trainer', 'owner'), applyToGym);
+router.get('/my-students', protect, authorize('trainer'), getTrainerStudents); 
 
 // Dynamic
 router.get('/:id', getTrainerById);

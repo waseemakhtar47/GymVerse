@@ -21,4 +21,5 @@ export const trainerService = {
     const data = trainerId ? { trainerId } : {};
     return api.post(`/trainers/apply/${gymId}`, data);
   },
+  getMyStudents: () => api.get('/trainers/my-students'),
 };

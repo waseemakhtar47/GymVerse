@@ -153,21 +153,46 @@ const getMyFollowers = async (req, res) => {
 };
 
 // @desc    Get trainer stats
+// @desc    Get trainer stats
 const getTrainerStats = async (req, res) => {
   try {
     const courses = await Course.countDocuments({ trainerId: req.user.id });
     const blogs = await Blog.countDocuments({ authorId: req.user.id });
-    const enrolledStudents = await Course.aggregate([
-      { $match: { trainerId: req.user.id } },
-      { $unwind: { path: '$enrolledUsers', preserveNullAndEmptyArrays: true } },
-      { $group: { _id: null, count: { $sum: 1 } } }
-    ]);
+    
+    // ✅ CORRECT: Count unique students across all courses
+    const coursesList = await Course.find({ trainerId: req.user.id });
+    const enrolledStudents = new Set();
+    
+    for (const course of coursesList) {
+      if (course.enrolledUsers && course.enrolledUsers.length > 0) {
+        course.enrolledUsers.forEach(enrollment => {
+          enrolledStudents.add(enrollment.userId.toString());
+        });
+      }
+    }
+    
+    const totalStudents = enrolledStudents.size;
+    
     const trainer = await User.findById(req.user.id);
     const followersCount = trainer?.followers?.length || 0;
     
+    // Calculate total revenue from course enrollments
+    let totalRevenue = 0;
+    for (const course of coursesList) {
+      if (course.enrolledUsers && course.price) {
+        totalRevenue += course.enrolledUsers.length * course.price;
+      }
+    }
+    
     res.json({
       success: true,
-      data: { courses, blogs, students: enrolledStudents[0]?.count || 0, followers: followersCount, earnings: 0 }
+      data: { 
+        courses, 
+        blogs, 
+        students: totalStudents, 
+        followers: followersCount, 
+        earnings: totalRevenue 
+      }
     });
   } catch (error) {
     console.error('getTrainerStats error:', error);
@@ -601,6 +626,77 @@ const getApprovedGymIds = async (req, res) => {
   }
 };
 
+// @desc    Get all students enrolled in trainer's courses
+const getTrainerStudents = async (req, res) => {
+  try {
+    const trainerId = req.user.id;
+    
+    // Get all courses of this trainer
+    const courses = await Course.find({ trainerId: trainerId });
+    
+    if (!courses.length) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    // Collect all enrolled students with their course details
+    const studentsMap = new Map();
+    
+    for (const course of courses) {
+      if (course.enrolledUsers && course.enrolledUsers.length > 0) {
+        for (const enrollment of course.enrolledUsers) {
+          const userId = enrollment.userId;
+          
+          if (!userId) continue;
+          
+          // Fetch user details if not already in map
+          if (!studentsMap.has(userId.toString())) {
+            const user = await User.findById(userId).select('name email phone profilePic');
+            if (user) {
+              studentsMap.set(userId.toString(), {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone || 'N/A',
+                profilePic: user.profilePic || null,
+                courses: []
+              });
+            }
+          }
+          
+          // Calculate remaining days
+          const validUntil = new Date(enrollment.validUntil);
+          const now = new Date();
+          const remainingDays = Math.ceil((validUntil - now) / (1000 * 60 * 60 * 24));
+          const isExpired = remainingDays <= 0;
+          
+          // Add course enrollment to student
+          if (studentsMap.has(userId.toString())) {
+            const student = studentsMap.get(userId.toString());
+            student.courses.push({
+              courseId: course._id,
+              courseTitle: course.title,
+              enrolledAt: enrollment.enrolledAt,
+              validUntil: enrollment.validUntil,
+              remainingDays: remainingDays > 0 ? remainingDays : 0,
+              isExpired: isExpired,
+              status: enrollment.status || (isExpired ? 'expired' : 'active')
+            });
+          }
+        }
+      }
+    }
+    
+    // Convert map to array and sort by name
+    const students = Array.from(studentsMap.values());
+    students.sort((a, b) => a.name.localeCompare(b.name));
+    
+    res.json({ success: true, data: students });
+  } catch (error) {
+    console.error('getTrainerStudents error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
 
   getAllTrainers,
@@ -623,4 +719,5 @@ module.exports = {
   updateApplicationStatus,
   cancelSentRequest,
   getApprovedGymIds,
+  getTrainerStudents,
 };
