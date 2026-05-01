@@ -18,4 +18,8 @@ export const gymService = {
   getGymSentRequests: (gymId) => api.get(`/gyms/${gymId}/sent-requests`),
   updateApplicationStatus: (gymId, trainerId, status) => api.put(`/gyms/${gymId}/applications/${trainerId}`, { status }),
   cancelSentRequest: (gymId, trainerId) => api.delete(`/gyms/${gymId}/sent-requests/${trainerId}`),
+  // Add to gymService object
+getGymRatings: (gymId) => api.get(`/gyms/${gymId}/ratings`),
+addGymRating: (gymId, rating, review) => api.post(`/gyms/${gymId}/ratings`, { rating, review }),
+deleteGymRating: (gymId) => api.delete(`/gyms/${gymId}/ratings`),
 };

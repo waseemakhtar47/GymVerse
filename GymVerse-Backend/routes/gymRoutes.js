@@ -13,6 +13,9 @@ const {
   updateApplicationStatus,
   cancelSentRequest,
   removeTrainer,
+  addGymRating,
+  getGymRatings,
+  deleteGymRating,
 } = require('../controllers/gymController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -22,6 +25,11 @@ const router = express.Router();
 router.get('/', getGyms);  // All gyms for users
 router.get('/nearby', getNearbyGyms);
 router.get('/:id', getGymById);
+
+// ============== RATINGS & REVIEWS ROUTES ==============
+router.get('/:id/ratings', protect, getGymRatings);
+router.post('/:id/ratings', protect, addGymRating);
+router.delete('/:id/ratings', protect, deleteGymRating);
 
 // ============== OWNER ROUTES (Authentication + Owner role) ==============
 router.get('/owner/gyms', protect, authorize('owner'), getOwnerGyms);

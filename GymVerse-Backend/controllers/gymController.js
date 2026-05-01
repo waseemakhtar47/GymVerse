@@ -1,5 +1,6 @@
 const Gym = require('../models/Gym');
 const User = require('../models/User');
+const Membership = require('../models/Membership');
 
 // Haversine formula to calculate distance between two points (in meters)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -448,6 +449,162 @@ const getOwnerGyms = async (req, res) => {
   }
 };
 
+// @desc    Add or update rating for a gym (only for members)
+const addGymRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, review } = req.body;
+    const userId = req.user.id;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
+    
+    // ✅ Check if user has active membership for this gym
+    const membership = await Membership.findOne({
+      userId: userId,
+      gymId: id,
+      status: 'active'
+    });
+    
+    if (!membership) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You can only rate gyms where you have an active membership' 
+      });
+    }
+    
+    const gym = await Gym.findById(id);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    // Check if user already rated this gym
+    const existingRatingIndex = gym.ratings.findIndex(
+      r => r.userId.toString() === userId
+    );
+    
+    if (existingRatingIndex !== -1) {
+      // Update existing rating
+      gym.ratings[existingRatingIndex].rating = rating;
+      gym.ratings[existingRatingIndex].review = review || '';
+      gym.ratings[existingRatingIndex].updatedAt = new Date();
+    } else {
+      // Add new rating
+      gym.ratings.push({
+        userId: userId,
+        rating: rating,
+        review: review || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+    
+    // Update average rating
+    await gym.updateAverageRating();
+    
+    // Populate user details for the response
+    await gym.populate('ratings.userId', 'name profilePic');
+    
+    res.json({ 
+      success: true, 
+      message: existingRatingIndex !== -1 ? 'Rating updated successfully' : 'Rating added successfully',
+      data: {
+        averageRating: gym.averageRating,
+        totalReviews: gym.totalReviews,
+        userRating: rating,
+        userReview: review || ''
+      }
+    });
+  } catch (error) {
+    console.error('addGymRating error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get gym ratings and reviews
+const getGymRatings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const gym = await Gym.findById(id)
+      .populate('ratings.userId', 'name profilePic');
+    
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    // Get user's own rating if logged in
+    let userRating = null;
+    if (req.user && req.user.id) {
+      const userRatingObj = gym.ratings.find(
+        r => r.userId._id.toString() === req.user.id
+      );
+      if (userRatingObj) {
+        userRating = {
+          rating: userRatingObj.rating,
+          review: userRatingObj.review,
+          createdAt: userRatingObj.createdAt
+        };
+      }
+    }
+    
+    // Check if user can rate (has active membership)
+    let canRate = false;
+    if (req.user && req.user.id) {
+      const membership = await Membership.findOne({
+        userId: req.user.id,
+        gymId: id,
+        status: 'active'
+      });
+      canRate = !!membership;
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        averageRating: gym.averageRating,
+        totalReviews: gym.totalReviews,
+        ratings: gym.ratings.sort((a, b) => b.createdAt - a.createdAt),
+        userRating: userRating,
+        canRate: canRate
+      }
+    });
+  } catch (error) {
+    console.error('getGymRatings error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete user's own rating
+const deleteGymRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const gym = await Gym.findById(id);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    
+    const ratingIndex = gym.ratings.findIndex(
+      r => r.userId.toString() === userId
+    );
+    
+    if (ratingIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Rating not found' });
+    }
+    
+    gym.ratings.splice(ratingIndex, 1);
+    await gym.updateAverageRating();
+    
+    res.json({ success: true, message: 'Rating deleted successfully' });
+  } catch (error) {
+    console.error('deleteGymRating error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createGym,
   getGyms,
@@ -462,4 +619,7 @@ module.exports = {
   updateApplicationStatus,
   cancelSentRequest,
   removeTrainer,
+   addGymRating,      
+  getGymRatings,
+  deleteGymRating,   
 };

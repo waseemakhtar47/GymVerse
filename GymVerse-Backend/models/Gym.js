@@ -40,14 +40,25 @@ const gymSchema = new mongoose.Schema(
     contactNumber: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
     
-    // ✅ NEW: Pricing for membership plans
     pricing: {
       monthly: { type: Number, default: 49 },
       quarterly: { type: Number, default: 129 },
       yearly: { type: Number, default: 499 },
     },
+    
+    // ✅ NEW: Ratings and Reviews
+    ratings: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        rating: { type: Number, required: true, min: 1, max: 5 },
+        review: { type: String, default: '' },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      }
+    ],
+    averageRating: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 },
 
-    // Associated trainers
     trainers: [
       {
         trainerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -61,5 +72,18 @@ const gymSchema = new mongoose.Schema(
 );
 
 gymSchema.index({ location: "2dsphere" });
+
+// Method to update average rating
+gymSchema.methods.updateAverageRating = function() {
+  if (this.ratings.length === 0) {
+    this.averageRating = 0;
+    this.totalReviews = 0;
+  } else {
+    const sum = this.ratings.reduce((acc, r) => acc + r.rating, 0);
+    this.averageRating = sum / this.ratings.length;
+    this.totalReviews = this.ratings.length;
+  }
+  return this.save();
+};
 
 module.exports = mongoose.model("Gym", gymSchema);

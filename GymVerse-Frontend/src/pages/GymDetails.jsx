@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { gymService } from '../services/gymService';
+import { membershipService } from '../services/membershipService';
+import StarRating from '../components/StarRating';
+import RatingModal from '../components/RatingModal';
 import { 
   BuildingOfficeIcon, 
   MapPinIcon, 
@@ -12,19 +16,36 @@ import {
   FireIcon,
   SparklesIcon,
   ArrowLeftIcon,
-  UserIcon
+  UserIcon,
+  EyeIcon,
+  CalendarIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const GymDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Reviews state
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [userRating, setUserRating] = useState(null);
+  const [canRate, setCanRate] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  
+  // Rating Modal
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   useEffect(() => {
     fetchGymDetails();
-  }, [id]);
+    fetchReviews();
+  }, [id, user]);
 
   const fetchGymDetails = async () => {
     setLoading(true);
@@ -39,12 +60,43 @@ const GymDetails = () => {
     }
   };
 
+  const fetchReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const res = await gymService.getGymRatings(id);
+      setReviews(res.data.data.ratings || []);
+      setAverageRating(res.data.data.averageRating || 0);
+      setTotalReviews(res.data.data.totalReviews || 0);
+      setUserRating(res.data.data.userRating);
+      setCanRate(res.data.data.canRate || false);
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
   const getFacilityIcon = (facility) => {
     const lower = facility.toLowerCase();
     if (lower.includes('wifi')) return <WifiIcon className="w-4 h-4" />;
     if (lower.includes('cardio') || lower.includes('treadmill')) return <FireIcon className="w-4 h-4" />;
     if (lower.includes('yoga') || lower.includes('zumba')) return <SparklesIcon className="w-4 h-4" />;
     return <BuildingOfficeIcon className="w-4 h-4" />;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const handleRatingSubmitted = async () => {
+    await fetchReviews();
+    await fetchGymDetails();
+    toast.success('Rating updated successfully!');
   };
 
   if (loading) {
@@ -71,10 +123,21 @@ const GymDetails = () => {
       {/* Header */}
       <div className="bg-gray-900/50 backdrop-blur-lg border-b border-white/10 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-6 py-4">
-          <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
-            <ArrowLeftIcon className="w-5 h-5" />
-            Back
-          </button>
+          <div className="flex justify-between items-center">
+            <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
+              <ArrowLeftIcon className="w-5 h-5" />
+              Back
+            </button>
+            {canRate && (
+              <button
+                onClick={() => setShowRatingModal(true)}
+                className="px-4 py-2 bg-yellow-600 rounded-lg text-white text-sm hover:bg-yellow-700 transition flex items-center gap-2"
+              >
+                <PencilIcon className="w-4 h-4" />
+                Write a Review
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -88,9 +151,11 @@ const GymDetails = () => {
             <div>
               <h1 className="text-3xl font-bold text-white">{gym.name}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <StarIcon className="w-4 h-4 text-yellow-500" />
-                <span className="text-white">4.8</span>
-                <span className="text-white/70 text-sm">(120 reviews)</span>
+                <StarRating rating={averageRating} size="sm" readonly={true} />
+                <span className="text-white">
+                  {averageRating > 0 ? averageRating.toFixed(1) : 'No ratings yet'}
+                </span>
+                <span className="text-white/70 text-sm">({totalReviews} reviews)</span>
               </div>
             </div>
           </div>
@@ -147,6 +212,30 @@ const GymDetails = () => {
           </div>
         )}
 
+        {/* Pricing */}
+        {gym.pricing && (
+          <div className="bg-white/5 rounded-xl p-4 mb-6">
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
+              <CurrencyDollarIcon className="w-5 h-5 text-purple-400" />
+              Membership Pricing
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-gray-400 text-sm">Monthly</p>
+                <p className="text-purple-400 font-bold text-lg">₹{gym.pricing.monthly}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Quarterly</p>
+                <p className="text-purple-400 font-bold text-lg">₹{gym.pricing.quarterly}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Yearly</p>
+                <p className="text-purple-400 font-bold text-lg">₹{gym.pricing.yearly}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Facilities */}
         {gym.facilities && gym.facilities.length > 0 && (
           <div className="bg-white/5 rounded-xl p-4 mb-6">
@@ -164,9 +253,131 @@ const GymDetails = () => {
             </div>
           </div>
         )}
+
+        {/* ========== REVIEWS SECTION - Sabhi Users Ke Liye ========== */}
+        <div className="bg-white/5 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white font-semibold flex items-center gap-2">
+              <StarIcon className="w-5 h-5 text-yellow-400" />
+              Member Reviews ({totalReviews})
+            </h2>
+            {!canRate && user && (
+              <p className="text-gray-500 text-xs">Buy a membership to rate this gym</p>
+            )}
+          </div>
+
+          {/* Average Rating Summary */}
+          {totalReviews > 0 && (
+            <div className="flex items-center gap-6 mb-6 pb-4 border-b border-white/10">
+              <div className="text-center">
+                <p className="text-4xl font-bold text-white">{averageRating.toFixed(1)}</p>
+                <StarRating rating={averageRating} size="sm" readonly={true} />
+                <p className="text-gray-400 text-xs mt-1">out of 5</p>
+              </div>
+              <div className="flex-1">
+                <div className="space-y-1">
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = reviews.filter(r => Math.floor(r.rating) === star).length;
+                    const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-xs w-6">{star}★</span>
+                        <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-yellow-400 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-400 text-xs w-8">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* User's Own Rating (if exists) */}
+          {userRating && (
+            <div className="mb-4 p-3 bg-purple-500/10 rounded-lg border border-purple-500">
+              <p className="text-purple-400 text-sm font-medium mb-1">Your Review</p>
+              <div className="flex items-center gap-3">
+                <StarRating rating={userRating.rating} size="sm" readonly={true} />
+                <span className="text-white text-sm">{userRating.review || 'No review written'}</span>
+              </div>
+              <p className="text-gray-500 text-xs mt-1">Posted on {formatDate(userRating.createdAt)}</p>
+            </div>
+          )}
+
+          {/* All Reviews List - Sabhi Reviews Yahan Dikhenge */}
+          {loadingReviews ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-400 ml-2 text-sm">Loading reviews...</p>
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-8">
+              <UserIcon className="w-12 h-12 mx-auto text-gray-500 mb-2" />
+              <p className="text-gray-400">No reviews yet</p>
+              {canRate && (
+                <button
+                  onClick={() => setShowRatingModal(true)}
+                  className="mt-3 px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                >
+                  Be the first to review!
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {reviews.map((review, idx) => (
+                <div key={idx} className="bg-white/5 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
+                      {review.userId?.profilePic ? (
+                        <img src={review.userId.profilePic} alt={review.userId.name} className="w-full h-full object-cover" />
+                      ) : (
+                        review.userId?.name?.charAt(0).toUpperCase() || 'U'
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-wrap justify-between items-start gap-2">
+                        <div>
+                          <p className="text-white font-semibold">{review.userId?.name || 'Anonymous'}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <StarRating rating={review.rating} size="sm" readonly={true} />
+                          </div>
+                        </div>
+                        <p className="text-gray-500 text-xs flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          {formatDate(review.createdAt)}
+                        </p>
+                      </div>
+                      {review.review && (
+                        <p className="text-gray-300 text-sm mt-3 leading-relaxed">{review.review}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Rating Modal - Sirf Active Members Ke Liye */}
+      {showRatingModal && gym && (
+        <RatingModal
+          gym={gym}
+          onClose={() => setShowRatingModal(false)}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
     </div>
   );
 };
+
+// Add CurrencyDollarIcon import at top if not present
+import { CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 export default GymDetails;
