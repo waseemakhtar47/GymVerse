@@ -352,6 +352,34 @@ const checkMembershipStatus = async (req, res) => {
   }
 };
 
+// @desc    Permanently delete a membership (for cleaning cancelled ones)
+const deleteMembership = async (req, res) => {
+  try {
+    const membership = await Membership.findById(req.params.id);
+    
+    if (!membership) {
+      return res.status(404).json({ success: false, message: 'Membership not found' });
+    }
+    
+    // User can only delete their own cancelled memberships
+    if (membership.userId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Only allow deletion of cancelled memberships
+    if (membership.status !== 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Only cancelled memberships can be deleted' });
+    }
+    
+    await membership.deleteOne();
+    
+    res.json({ success: true, message: 'Membership deleted successfully' });
+  } catch (error) {
+    console.error('deleteMembership error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createMembership,
   getMyMemberships,
@@ -362,4 +390,5 @@ module.exports = {
   getAllMemberships,
   getEntryLogs,
   checkMembershipStatus,
+  deleteMembership,
 };

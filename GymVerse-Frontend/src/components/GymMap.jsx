@@ -33,45 +33,63 @@ const GymMap = ({ gyms, onGymClick, userLocation, selectedGym }) => {
   const containerRef = useRef(null);
   const markersRef = useRef([]);
   const userMarkerRef = useRef(null);
+  const isMapInitialized = useRef(false);
 
   // Initialize map
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    // Ensure container exists before creating map
+    if (!containerRef.current || isMapInitialized.current) return;
 
-    // Default to Ganjdundwara
-    const defaultCenter = [27.731571, 78.941208];
-    
-    mapRef.current = L.map(containerRef.current).setView(defaultCenter, 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap",
-      maxZoom: 19,
-    }).addTo(mapRef.current);
+    // Small delay to ensure container is fully rendered
+    const timer = setTimeout(() => {
+      if (!containerRef.current) return;
+      
+      // Default to Ganjdundwara
+      const defaultCenter = [27.731571, 78.941208];
+      
+      try {
+        mapRef.current = L.map(containerRef.current).setView(defaultCenter, 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap",
+          maxZoom: 19,
+        }).addTo(mapRef.current);
+        isMapInitialized.current = true;
+      } catch (error) {
+        console.error("Error initializing map:", error);
+      }
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        isMapInitialized.current = false;
       }
     };
   }, []);
 
   // Update when userLocation changes
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !userLocation?.lat || !userLocation?.lng) return;
     
-    if (userLocation?.lat && userLocation?.lng) {
-      const lat = userLocation.lat;
-      const lng = userLocation.lng;
-      
+    try {
+      const { lat, lng } = userLocation;
       
       // Move map
       mapRef.current.setView([lat, lng], 14);
       
       // Update user marker
-      if (userMarkerRef.current) userMarkerRef.current.remove();
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
+      
       userMarkerRef.current = L.marker([lat, lng], { icon: userIcon })
         .bindPopup("📍 You are here")
         .addTo(mapRef.current);
+    } catch (error) {
+      console.error("Error updating user location:", error);
     }
   }, [userLocation]);
 
@@ -79,30 +97,45 @@ const GymMap = ({ gyms, onGymClick, userLocation, selectedGym }) => {
   useEffect(() => {
     if (!mapRef.current) return;
     
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-    
-    gyms.forEach(gym => {
-      let lat = gym.location?.coordinates?.[1];
-      let lng = gym.location?.coordinates?.[0];
+    try {
+      // Remove existing markers
+      markersRef.current.forEach(m => {
+        if (m && m.remove) m.remove();
+      });
+      markersRef.current = [];
       
-      if (lat && lng) {
-        const marker = L.marker([lat, lng], { icon: gymIcon })
-          .bindPopup(`<b>${gym.name}</b><br>${gym.address || ""}`)
-          .addTo(mapRef.current);
+      // Add new markers
+      gyms.forEach(gym => {
+        let lat = gym.location?.coordinates?.[1];
+        let lng = gym.location?.coordinates?.[0];
         
-        marker.on("click", () => onGymClick?.(gym));
-        markersRef.current.push(marker);
-      }
-    });
+        if (lat && lng) {
+          const marker = L.marker([lat, lng], { icon: gymIcon })
+            .bindPopup(`<b>${gym.name}</b><br>${gym.address || ""}`)
+            .addTo(mapRef.current);
+          
+          marker.on("click", () => onGymClick?.(gym));
+          markersRef.current.push(marker);
+        }
+      });
+    } catch (error) {
+      console.error("Error updating gym markers:", error);
+    }
   }, [gyms, onGymClick]);
 
   // Center on selected gym
   useEffect(() => {
     if (!mapRef.current || !selectedGym) return;
-    const lat = selectedGym.location?.coordinates?.[1];
-    const lng = selectedGym.location?.coordinates?.[0];
-    if (lat && lng) mapRef.current.setView([lat, lng], 15);
+    
+    try {
+      const lat = selectedGym.location?.coordinates?.[1];
+      const lng = selectedGym.location?.coordinates?.[0];
+      if (lat && lng) {
+        mapRef.current.setView([lat, lng], 15);
+      }
+    } catch (error) {
+      console.error("Error centering on selected gym:", error);
+    }
   }, [selectedGym]);
 
   return <div ref={containerRef} className="w-full h-125 rounded-xl bg-gray-800" />;

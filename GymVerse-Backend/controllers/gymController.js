@@ -42,17 +42,17 @@ const createGym = async (req, res) => {
   }
 };
 
-// @desc    Get all gyms
 // @desc    Get all gyms (public - for users) OR get owner's gyms (for owner)
 const getGyms = async (req, res) => {
   try {
     let query = { isActive: true };
     
-    // ✅ If logged-in user is owner, show only their gyms
+    // If logged-in user is owner, show only their gyms
     if (req.user && req.user.role === 'owner') {
       query.ownerId = req.user.id;
     }
     
+    // ✅ Add populate for ownerId
     const gyms = await Gym.find(query).populate('ownerId', 'name email');
     console.log(`📍 Found ${gyms.length} gyms for ${req.user?.role || 'public'}`);
     
@@ -82,19 +82,15 @@ const getNearbyGyms = async (req, res) => {
   try {
     let { lng, lat, maxDistance = 50000 } = req.query;
     
-   
-    
     if (!lng || !lat) {
-
-      const allGyms = await Gym.find({ isActive: true });
+      const allGyms = await Gym.find({ isActive: true }).populate('ownerId', 'name email');
       return res.json({ success: true, data: allGyms });
     }
     
     const longitude = parseFloat(lng);
     const latitude = parseFloat(lat);
     
-    
-    const allGyms = await Gym.find({ isActive: true });
+    const allGyms = await Gym.find({ isActive: true }).populate('ownerId', 'name email');
     
     const nearbyGyms = [];
     
@@ -123,12 +119,11 @@ const getNearbyGyms = async (req, res) => {
     
     nearbyGyms.sort((a, b) => a.distance - b.distance);
     
-    
     res.json({ success: true, data: nearbyGyms });
     
   } catch (error) {
     console.error('getNearbyGyms error:', error);
-    const allGyms = await Gym.find({ isActive: true });
+    const allGyms = await Gym.find({ isActive: true }).populate('ownerId', 'name email');
     res.json({ success: true, data: allGyms });
   }
 };

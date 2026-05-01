@@ -9,4 +9,5 @@ export const membershipService = {
   checkMembershipStatus: (gymId) => api.get(`/memberships/check/${gymId}`),
   getMembershipById: (id) => api.get(`/memberships/${id}`),
   getEntryLogs: (id) => api.get(`/memberships/${id}/logs`),
+  deleteMembership: (id) => api.delete(`/memberships/${id}`),
 };

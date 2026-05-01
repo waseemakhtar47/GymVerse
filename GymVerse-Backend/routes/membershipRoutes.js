@@ -9,6 +9,7 @@ const {
   getAllMemberships,
   getEntryLogs,
   checkMembershipStatus,
+  deleteMembership,
 } = require('../controllers/membershipController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -23,5 +24,6 @@ router.post('/verify', protect, verifyQR);
 router.get('/', protect, authorize('admin'), getAllMemberships);
 router.get('/:id', protect, getMembershipById);
 router.get('/:id/logs', protect, getEntryLogs);
+router.delete('/:id', protect, deleteMembership);
 
 module.exports = router;

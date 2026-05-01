@@ -10,7 +10,9 @@ import {
   XMarkIcon,
   BuildingOfficeIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  TrashIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -57,13 +59,47 @@ const MyMemberships = () => {
     }
   };
 
-  const getRemainingDays = (endDate) => {
-    const remaining = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
-    if (remaining < 0) return 0;
-    return remaining;
+  // ✅ Clean all cancelled memberships
+  const handleCleanCancelled = async () => {
+    if (!confirm('Remove all cancelled memberships from history? This action cannot be undone.')) return;
+    
+    try {
+      // Get all cancelled memberships
+      const cancelledMemberships = memberships.filter(m => m.status === 'cancelled');
+      
+      if (cancelledMemberships.length === 0) {
+        toast.error('No cancelled memberships to clean');
+        return;
+      }
+      
+      let deletedCount = 0;
+      
+      for (const membership of cancelledMemberships) {
+        try {
+          await membershipService.deleteMembership(membership._id);
+          deletedCount++;
+        } catch (err) {
+          console.error('Failed to delete membership:', err);
+        }
+      }
+      
+      toast.success(`${deletedCount} cancelled membership${deletedCount !== 1 ? 's' : ''} removed from history`);
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      toast.error('Failed to clean cancelled memberships');
+    }
   };
 
-  // Get plan details from gym pricing (for buy modal only)
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'active': return 'text-green-400 bg-green-500/20';
+      case 'expired': return 'text-red-400 bg-red-500/20';
+      case 'cancelled': return 'text-gray-400 bg-gray-500/20';
+      default: return 'text-gray-400 bg-gray-500/20';
+    }
+  };
+
+  // Get plan details from gym pricing
   const getPlanDetails = (plan, gym = null) => {
     let price = 49;
     let amount = 49;
@@ -106,6 +142,12 @@ const MyMemberships = () => {
     };
   };
 
+  const getRemainingDays = (endDate) => {
+    const remaining = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
+    if (remaining < 0) return 0;
+    return remaining;
+  };
+
   const activeMemberships = memberships.filter(m => m.status === 'active');
   const expiredMemberships = memberships.filter(m => m.status === 'expired');
   const cancelledMemberships = memberships.filter(m => m.status === 'cancelled');
@@ -127,7 +169,7 @@ const MyMemberships = () => {
     <DashboardLayout title="My Memberships" role="user">
       <div className="space-y-6">
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/10 pb-2 flex-wrap">
+        <div className="flex gap-2 border-b border-white/10 pb-2 flex-wrap items-center">
           <button
             onClick={() => setActiveTab('active')}
             className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
@@ -164,9 +206,30 @@ const MyMemberships = () => {
             <CreditCardIcon className="w-4 h-4" />
             Buy New
           </button>
+
+          {/* Refresh Button */}
+          <button
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            className="ml-auto px-3 py-2 bg-white/10 rounded-lg text-gray-400 hover:text-white transition"
+            title="Refresh"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+          </button>
+
+          {/* Clean Cancelled Button - Only shows on cancelled tab */}
+          {activeTab === 'cancelled' && cancelledMemberships.length > 0 && (
+            <button
+              onClick={handleCleanCancelled}
+              className="px-3 py-2 bg-red-600/20 rounded-lg text-red-400 hover:bg-red-600/30 transition flex items-center gap-1"
+              title="Clean Cancelled Memberships"
+            >
+              <TrashIcon className="w-4 h-4" />
+              Clean All
+            </button>
+          )}
         </div>
 
-        {/* Active Memberships Tab - Shows paymentAmount from database */}
+        {/* Active Memberships Tab */}
         {activeTab === 'active' && (
           <div>
             {activeMemberships.length === 0 ? (
@@ -184,9 +247,8 @@ const MyMemberships = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeMemberships.map((m) => {
-                  const planName = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+                  const plan = getPlanDetails(m.plan, m.gymId);
                   const remainingDays = getRemainingDays(m.endDate);
-                  // ✅ Database se stored payment amount
                   const paidAmount = m.paymentAmount || 0;
                   
                   return (
@@ -202,7 +264,7 @@ const MyMemberships = () => {
                           </div>
                           <div>
                             <h3 className="text-white font-bold text-lg">{m.gymId?.name || 'Gym'}</h3>
-                            <p className="text-white/80 text-sm">{planName[m.plan]} Plan</p>
+                            <p className="text-white/80 text-sm">{plan.name} Plan</p>
                           </div>
                         </div>
                       </div>
@@ -210,7 +272,7 @@ const MyMemberships = () => {
                       <div className="p-4 space-y-3">
                         <div className="flex justify-between">
                           <span className="text-gray-400">Amount</span>
-                          <span className="text-white font-semibold">₹{paidAmount}</span>
+                          <span className="text-white font-semibold">{plan.price}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Start Date</span>
@@ -263,7 +325,7 @@ const MyMemberships = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {expiredMemberships.map((m) => {
-                  const paidAmount = m.paymentAmount || 0;
+                  const plan = getPlanDetails(m.plan, m.gymId);
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-red-500/30">
                       <div className="h-20 bg-gray-700 p-4">
@@ -277,15 +339,11 @@ const MyMemberships = () => {
                           </div>
                           <div>
                             <h3 className="text-white font-bold">{m.gymId?.name}</h3>
-                            <p className="text-gray-400 text-sm">{m.plan} Plan</p>
+                            <p className="text-gray-400 text-sm">{plan.name} Plan</p>
                           </div>
                         </div>
                       </div>
                       <div className="p-4">
-                        <div className="flex justify-between mb-2">
-                          <span className="text-gray-400">Paid Amount</span>
-                          <span className="text-white">₹{paidAmount}</span>
-                        </div>
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-400">Expired on</span>
                           <span className="text-red-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
@@ -298,7 +356,7 @@ const MyMemberships = () => {
                           }}
                           className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
                         >
-                          Renew Now
+                          Renew Now - {plan.price}
                         </button>
                       </div>
                     </div>
@@ -309,7 +367,7 @@ const MyMemberships = () => {
           </div>
         )}
 
-        {/* Cancelled Memberships Tab */}
+        {/* Cancelled Memberships Tab - With Clean Button */}
         {activeTab === 'cancelled' && (
           <div>
             {cancelledMemberships.length === 0 ? (
@@ -321,7 +379,7 @@ const MyMemberships = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cancelledMemberships.map((m) => {
-                  const paidAmount = m.paymentAmount || 0;
+                  const plan = getPlanDetails(m.plan, m.gymId);
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-gray-500/30 opacity-80">
                       <div className="h-20 bg-gray-800 p-4">
@@ -335,15 +393,11 @@ const MyMemberships = () => {
                           </div>
                           <div>
                             <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
-                            <p className="text-gray-400 text-sm">{m.plan} Plan</p>
+                            <p className="text-gray-400 text-sm">{plan.name} Plan</p>
                           </div>
                         </div>
                       </div>
                       <div className="p-4">
-                        <div className="flex justify-between mb-2">
-                          <span className="text-gray-400">Paid Amount</span>
-                          <span className="text-white">₹{paidAmount}</span>
-                        </div>
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-400">Cancelled on</span>
                           <span className="text-gray-400 text-sm">{new Date(m.updatedAt).toLocaleDateString()}</span>
@@ -360,7 +414,7 @@ const MyMemberships = () => {
                           }}
                           className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
                         >
-                          Buy New
+                          Buy New - {plan.price}
                         </button>
                       </div>
                     </div>
@@ -371,7 +425,7 @@ const MyMemberships = () => {
           </div>
         )}
 
-        {/* Buy Membership Tab */}
+        {/* Buy New Tab */}
         {activeTab === 'buy' && (
           <div>
             <h3 className="text-white font-semibold mb-4">Choose a Gym</h3>
