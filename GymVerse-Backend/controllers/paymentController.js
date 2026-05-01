@@ -30,7 +30,6 @@ const getAmountAndPrice = async (gymId, plan) => {
         return { amount: 4999, price: 49 };
     }
   }
-  // Fallback defaults
   switch (plan) {
     case "monthly":
       return { amount: 4999, price: 49 };
@@ -43,6 +42,7 @@ const getAmountAndPrice = async (gymId, plan) => {
   }
 };
 
+// @desc    Create order for membership
 const createMembershipOrder = async (req, res) => {
   try {
     const { gymId, plan } = req.body;
@@ -82,7 +82,7 @@ const createMembershipOrder = async (req, res) => {
     const payment = new Payment({
       userId: req.user.id,
       orderId: order.id,
-      amount: amount,
+      amount: price,
       type: "membership",
       itemId: gymId,
       plan: plan,
@@ -127,7 +127,6 @@ const createCourseOrder = async (req, res) => {
 
     const userId = req.user.id;
     
-    // ✅ Check if user has ACTIVE enrollment (NOT cancelled or expired)
     const activeEnrollment = course.enrolledUsers?.some(
       (u) => u.userId.toString() === userId && u.status === 'active'
     );
@@ -138,31 +137,23 @@ const createCourseOrder = async (req, res) => {
         message: "You are already actively enrolled in this course",
       });
     }
-    
-    // ✅ If cancelled or expired, allow new order (will reactivate on payment)
-    const hasCancelledOrExpired = course.enrolledUsers?.some(
-      (u) => u.userId.toString() === userId && (u.status === 'cancelled' || u.status === 'expired')
-    );
-    
-    if (hasCancelledOrExpired) {
-      console.log("User has cancelled/expired enrollment - allowing new purchase");
-    }
 
-    const amount = Math.round(course.price * 100);
+    const amountInPaise = Math.round(course.price * 100);
+    const amountInRupees = course.price;
 
     const shortCourseId = courseId.slice(-8);
     const timestamp = Date.now().toString().slice(-8);
     const receipt = `crs_${shortCourseId}_${timestamp}`;
 
     const options = {
-      amount: amount,
+      amount: amountInPaise,
       currency: "INR",
       receipt: receipt,
       notes: {
         type: "course",
         courseId: courseId.toString(),
         courseTitle: course.title.substring(0, 30),
-        price: course.price,
+        price: amountInRupees,
       },
     };
 
@@ -173,7 +164,7 @@ const createCourseOrder = async (req, res) => {
     const payment = new Payment({
       userId: req.user.id,
       orderId: order.id,
-      amount: amount,
+      amount: amountInRupees,
       type: "course",
       itemId: courseId,
       status: "created",
@@ -221,19 +212,15 @@ const verifyPayment = async (req, res) => {
     }
 
     if (type === "membership") {
-      // ✅ Get gym to fetch its pricing
       const gym = await Gym.findById(itemId);
       
-      let price = 49; // default
+      let price = 49;
       if (gym && gym.pricing) {
         switch(plan) {
           case 'monthly': price = gym.pricing.monthly || 49; break;
           case 'quarterly': price = gym.pricing.quarterly || 129; break;
           case 'yearly': price = gym.pricing.yearly || 499; break;
         }
-      } else {
-        const { price: defaultPrice } = await getAmountAndPrice(itemId, plan);
-        price = defaultPrice;
       }
       
       const startDate = new Date();
@@ -272,49 +259,45 @@ const verifyPayment = async (req, res) => {
       });
     }
 
- // Update the verifyPayment function's course section
-else if (type === "course") {
-  const course = await Course.findById(itemId);
-  if (course) {
-    const userId = req.user.id;
-    
-    // Check if user has cancelled enrollment
-    const existingEnrollmentIndex = course.enrolledUsers?.findIndex(
-      (u) => u.userId.toString() === userId
-    );
-    
-    if (existingEnrollmentIndex !== -1 && existingEnrollmentIndex >= 0) {
-      // Reactivate existing enrollment (cancelled or expired)
-      console.log("Reactivating existing enrollment for user:", userId);
-      course.enrolledUsers[existingEnrollmentIndex].status = 'active';
-      course.enrolledUsers[existingEnrollmentIndex].enrolledAt = new Date();
-      const validUntil = new Date();
-      validUntil.setDate(validUntil.getDate() + (course.validityDays || 365));
-      course.enrolledUsers[existingEnrollmentIndex].validUntil = validUntil;
-      course.enrolledUsers[existingEnrollmentIndex].cancelledAt = null;
-    } else {
-      // New enrollment
-      console.log("Creating new enrollment for user:", userId);
-      const validUntil = new Date();
-      validUntil.setDate(validUntil.getDate() + (course.validityDays || 365));
-      
-      course.enrolledUsers.push({
-        userId: userId,
-        enrolledAt: new Date(),
-        validUntil: validUntil,
-        status: 'active',
+    else if (type === "course") {
+      const course = await Course.findById(itemId);
+      if (course) {
+        const userId = req.user.id;
+        
+        const existingEnrollmentIndex = course.enrolledUsers?.findIndex(
+          (u) => u.userId.toString() === userId
+        );
+        
+        if (existingEnrollmentIndex !== -1 && existingEnrollmentIndex >= 0) {
+          console.log("Reactivating existing enrollment for user:", userId);
+          course.enrolledUsers[existingEnrollmentIndex].status = 'active';
+          course.enrolledUsers[existingEnrollmentIndex].enrolledAt = new Date();
+          const validUntil = new Date();
+          validUntil.setDate(validUntil.getDate() + (course.validityDays || 365));
+          course.enrolledUsers[existingEnrollmentIndex].validUntil = validUntil;
+          course.enrolledUsers[existingEnrollmentIndex].cancelledAt = null;
+        } else {
+          console.log("Creating new enrollment for user:", userId);
+          const validUntil = new Date();
+          validUntil.setDate(validUntil.getDate() + (course.validityDays || 365));
+          
+          course.enrolledUsers.push({
+            userId: userId,
+            enrolledAt: new Date(),
+            validUntil: validUntil,
+            status: 'active',
+          });
+        }
+        
+        await course.save();
+        console.log("✅ User enrolled in course:", course.title);
+      }
+
+      res.json({
+        success: true,
+        message: "Payment successful! You are now enrolled.",
       });
     }
-    
-    await course.save();
-    console.log("✅ User enrolled in course:", course.title);
-  }
-
-  res.json({
-    success: true,
-    message: "Payment successful! You are now enrolled.",
-  });
-}
   } catch (error) {
     console.error("❌ verifyPayment error:", error);
     res.status(500).json({ success: false, message: error.message });
