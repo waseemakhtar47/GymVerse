@@ -221,9 +221,10 @@ const getTrainerBlogs = async (req, res) => {
     }
     
     const blogs = await Blog.find({ authorId: trainerId, isPublished: true })
-      .select('title views createdAt excerpt featuredImage category')
+      .select('title views createdAt excerpt featuredImage category likes comments')
       .sort({ createdAt: -1 });
     
+    // Calculate counts properly
     const blogsWithCounts = blogs.map(blog => ({
       ...blog.toObject(),
       likeCount: blog.likes?.length || 0,

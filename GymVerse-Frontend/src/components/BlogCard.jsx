@@ -49,7 +49,7 @@ const BlogCard = ({ blog, onRefresh }) => {
           </span>
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <ChatBubbleLeftIcon className="w-4 h-4" />
-            <span>{comments.length}</span>
+            <span>{comments.length} Comments</span>
           </div>
         </div>
         
@@ -77,7 +77,7 @@ const BlogCard = ({ blog, onRefresh }) => {
             ) : (
               <HeartIcon className="w-5 h-5 text-gray-400 hover:text-red-500" />
             )}
-            <span className="text-gray-400 text-sm">{likeCount}</span>
+            <span className="text-gray-400 text-sm">{likeCount} Likes</span>
           </button>
         </div>
         

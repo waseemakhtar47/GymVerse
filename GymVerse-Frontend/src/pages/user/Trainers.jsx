@@ -9,6 +9,7 @@ import {
   DocumentTextIcon,
   StarIcon,
   HeartIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
@@ -20,11 +21,6 @@ const Trainers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedTrainer, setSelectedTrainer] = useState(null);
-  const [trainerDetails, setTrainerDetails] = useState(null);
-  const [trainerCourses, setTrainerCourses] = useState([]);
-  const [trainerBlogs, setTrainerBlogs] = useState([]);
-  const [showProfileModal, setShowProfileModal] = useState(false);
   const [followingLoading, setFollowingLoading] = useState({});
 
   useEffect(() => {
@@ -77,25 +73,9 @@ const Trainers = () => {
     return following.some((t) => t._id === trainerId);
   };
 
-  const handleViewProfile = async (trainer) => {
-    setSelectedTrainer(trainer);
-    setShowProfileModal(true);
-    try {
-      const [detailsRes, coursesRes, blogsRes] = await Promise.all([
-        trainerService.getTrainerById(trainer._id),
-        trainerService
-          .getTrainerCourses(trainer._id)
-          .catch(() => ({ data: { data: [] } })),
-        trainerService
-          .getTrainerBlogs(trainer._id)
-          .catch(() => ({ data: { data: [] } })),
-      ]);
-      setTrainerDetails(detailsRes.data.data);
-      setTrainerCourses(coursesRes.data.data || []);
-      setTrainerBlogs(blogsRes.data.data || []);
-    } catch (error) {
-      console.error("Failed to fetch trainer details:", error);
-    }
+  // ✅ Sirf View Profile button se page khulega, card click se kuch nahi
+  const handleViewProfile = (trainerId) => {
+    navigate(`/trainer-profile/${trainerId}`);
   };
 
   const getFollowingTrainers = () => {
@@ -177,8 +157,7 @@ const Trainers = () => {
             {displayedTrainers.map((trainer) => (
               <div
                 key={trainer._id}
-                className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-white/10 hover:scale-105 transition cursor-pointer"
-                onClick={() => handleViewProfile(trainer)}
+                className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-white/10 hover:scale-105 transition"
               >
                 <div className="h-32 bg-linear-to-r from-purple-600 to-blue-600 p-4 relative">
                   <div className="flex items-center justify-between">
@@ -220,8 +199,7 @@ const Trainers = () => {
                     {trainer.name}
                   </h3>
                   <p className="text-gray-400 text-sm mt-1 line-clamp-2">
-                    {trainer.bio ||
-                      "Expert fitness trainer helping people achieve their fitness goals."}
+                    {trainer.bio || "Expert fitness trainer helping people achieve their fitness goals."}
                   </p>
                   <div className="flex items-center gap-4 mt-3 text-sm">
                     <div className="flex items-center gap-1">
@@ -244,107 +222,16 @@ const Trainers = () => {
                       ({trainer.followers || 0} followers)
                     </span>
                   </div>
+                  {/* ✅ Sirf View Profile button - Card click se kuch nahi hoga */}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log(
-                        "View Profile clicked for trainer:",
-                        trainer._id,
-                      );
-                      navigate(`/trainer-profile/${trainer._id}`);
-                    }}
-                    className="mt-4 w-full py-2 border border-purple-500 rounded-lg text-purple-400 text-sm hover:bg-purple-500/10 transition"
+                    onClick={() => handleViewProfile(trainer._id)}
+                    className="mt-4 w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition"
                   >
                     View Profile
                   </button>
                 </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Profile Modal */}
-        {showProfileModal && selectedTrainer && (
-          <div
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 overflow-y-auto py-8"
-            onClick={() => setShowProfileModal(false)}
-          >
-            <div
-              className="bg-gray-900 rounded-xl max-w-2xl w-full mx-4 border border-white/10 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="h-32 bg-linear-to-r from-purple-600 to-blue-600 p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-                      {selectedTrainer.profilePic ? (
-                        <img
-                          src={selectedTrainer.profilePic}
-                          alt={selectedTrainer.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <UserIcon className="w-10 h-10 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">
-                        {selectedTrainer.name}
-                      </h2>
-                      <p className="text-white/80 text-sm">
-                        {trainerDetails?.specialty || "Fitness Trainer"}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowProfileModal(false)}
-                    className="text-white/80 hover:text-white text-xl"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-white/5 rounded-lg">
-                    <p className="text-2xl font-bold text-white">
-                      {trainerCourses.length}
-                    </p>
-                    <p className="text-gray-400 text-sm">Courses</p>
-                  </div>
-                  <div className="text-center p-3 bg-white/5 rounded-lg">
-                    <p className="text-2xl font-bold text-white">
-                      {trainerBlogs.length}
-                    </p>
-                    <p className="text-gray-400 text-sm">Blogs</p>
-                  </div>
-                  <div className="text-center p-3 bg-white/5 rounded-lg">
-                    <p className="text-2xl font-bold text-white">
-                      {selectedTrainer.followers || 0}
-                    </p>
-                    <p className="text-gray-400 text-sm">Followers</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold mb-2">About</h3>
-                  <p className="text-gray-400 text-sm">
-                    {trainerDetails?.bio ||
-                      "Certified fitness trainer with expertise in strength training, nutrition, and functional fitness."}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    handleFollow(selectedTrainer._id);
-                    setShowProfileModal(false);
-                  }}
-                  className={`w-full py-3 rounded-lg font-semibold transition ${isFollowing(selectedTrainer._id) ? "bg-red-600/20 text-red-400 hover:bg-red-600/30" : "bg-purple-600 text-white hover:bg-purple-700"}`}
-                >
-                  {isFollowing(selectedTrainer._id)
-                    ? "Unfollow Trainer"
-                    : "Follow Trainer"}
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>

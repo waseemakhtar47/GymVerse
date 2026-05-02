@@ -213,7 +213,12 @@ const getBlogsByAuthor = async (req, res) => {
       .populate('authorId', 'name profilePic')
       .sort({ createdAt: -1 });
     
-    const blogsWithCounts = addCountsToBlogs(blogs);
+    const blogsWithCounts = blogs.map(blog => ({
+      ...blog.toObject(),
+      likeCount: blog.likes?.length || 0,
+      commentCount: blog.comments?.length || 0,
+    }));
+    
     res.json({ success: true, data: blogsWithCounts });
   } catch (error) {
     console.error('getBlogsByAuthor error:', error);

@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { trainerService } from '../services/trainerService';
 import { gymService } from '../services/gymService';
 import { chatService } from '../services/chatService';
+import { blogService } from '../services/blogService';
+import { courseService } from '../services/courseService';
 import { 
   UserIcon, 
   VideoCameraIcon, 
@@ -13,8 +15,15 @@ import {
   MapPinIcon,
   PhoneIcon,
   EnvelopeIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  CalendarIcon,
+  HeartIcon,
+  UserGroupIcon,
+  BookOpenIcon,
+  TrophyIcon,
+  CheckBadgeIcon
 } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 
 const TrainerProfile = () => {
@@ -28,13 +37,19 @@ const TrainerProfile = () => {
   const [gyms, setGyms] = useState([]);
   const [selectedGym, setSelectedGym] = useState('');
   const [hiring, setHiring] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingLoading, setFollowingLoading] = useState(false);
 
   useEffect(() => {
     fetchTrainerData();
     if (user?.role === 'owner') {
       fetchGyms();
     }
-  }, [id]);
+    if (user?.role === 'user') {
+      checkIfFollowing();
+    }
+  }, [id, user]);
 
   const fetchTrainerData = async () => {
     setLoading(true);
@@ -47,6 +62,7 @@ const TrainerProfile = () => {
       setTrainer(trainerRes.data.data);
       setCourses(coursesRes.data.data || []);
       setBlogs(blogsRes.data.data || []);
+      setFollowersCount(trainerRes.data.data.followers || 0);
     } catch (error) {
       console.error('Failed to fetch trainer data:', error);
       toast.error('Trainer not found');
@@ -56,12 +72,48 @@ const TrainerProfile = () => {
     }
   };
 
+  const checkIfFollowing = async () => {
+    try {
+      const res = await trainerService.getFollowingTrainers();
+      const followingTrainers = res.data.data || [];
+      const isFollow = followingTrainers.some(t => t._id === id);
+      setIsFollowing(isFollow);
+    } catch (error) {
+      console.error('Failed to check following status:', error);
+    }
+  };
+
   const fetchGyms = async () => {
     try {
       const res = await gymService.getOwnerGyms();
       setGyms(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch gyms:', error);
+    }
+  };
+
+  const handleFollow = async () => {
+    setFollowingLoading(true);
+    try {
+      const res = await trainerService.followTrainer(id);
+      setIsFollowing(res.data.data.following);
+      setFollowersCount(prev => res.data.data.following ? prev + 1 : prev - 1);
+      toast.success(res.data.data.following ? 'Now following this trainer' : 'Unfollowed trainer');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to follow trainer');
+    } finally {
+      setFollowingLoading(false);
+    }
+  };
+
+  const handleStartChat = async () => {
+    try {
+      const res = await chatService.getOrCreateChat(trainer._id);
+      const chatId = res.data.data._id;
+      navigate(`/${user?.role}/chat?chatId=${chatId}`);
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      toast.error('Failed to start chat');
     }
   };
 
@@ -78,29 +130,18 @@ const TrainerProfile = () => {
       setSelectedGym('');
     } catch (error) {
       const errorMsg = error.response?.data?.message;
-      if (errorMsg === 'Hiring request already sent to this trainer. Waiting for response.') {
-        toast.error('Hiring request already sent. Waiting for trainer response.');
-      } else if (errorMsg === 'Trainer has already rejected your request. Cannot send again.') {
-        toast.error('Trainer has already rejected your request.');
-      } else if (errorMsg === 'Trainer is already associated with this gym') {
-        toast.error(`${trainer?.name} is already a trainer at this gym`);
-      } else {
-        toast.error(errorMsg || 'Failed to send hiring request');
-      }
+      toast.error(errorMsg || 'Failed to send hiring request');
     } finally {
       setHiring(false);
     }
   };
 
-  const handleStartChat = async () => {
-    try {
-      const res = await chatService.getOrCreateChat(trainer._id);
-      const chatId = res.data.data._id;
-      navigate(`/${user?.role}/chat?chatId=${chatId}`);
-    } catch (error) {
-      console.error('Failed to start chat:', error);
-      toast.error('Failed to start chat');
-    }
+  const handleBlogClick = (blogId) => {
+    navigate(`/user/blogs`);
+  };
+
+  const handleCourseClick = (courseId) => {
+    navigate(`/course-player/${courseId}`);
   };
 
   if (loading) {
@@ -124,6 +165,7 @@ const TrainerProfile = () => {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Header */}
       <div className="bg-gray-900/50 backdrop-blur-lg border-b border-white/10 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition flex items-center gap-2">
@@ -132,62 +174,125 @@ const TrainerProfile = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-32 h-32 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+      {/* Hero Section */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-linear-to-r from-purple-900/50 to-blue-900/50 h-64"></div>
+        <div className="relative max-w-6xl mx-auto px-6 py-12">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Profile Image */}
+            <div className="w-40 h-40 rounded-2xl bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden shadow-2xl">
               {trainer.profilePic ? (
                 <img src={trainer.profilePic} alt={trainer.name} className="w-full h-full object-cover" />
               ) : (
-                <UserIcon className="w-16 h-16 text-white" />
+                <UserIcon className="w-20 h-20 text-white" />
               )}
             </div>
             
+            {/* Trainer Info */}
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white">{trainer.name}</h1>
-              <div className="flex items-center gap-2 mt-1 text-gray-400 text-sm">
-                <EnvelopeIcon className="w-4 h-4" />
-                <span>{trainer.email}</span>
+              <div className="flex flex-wrap justify-between items-start gap-4">
+                <div>
+                  <h1 className="text-4xl font-bold text-white">{trainer.name}</h1>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="px-3 py-1 bg-purple-500/20 rounded-full text-purple-400 text-sm">
+                      {trainer.specialty || 'Fitness Trainer'}
+                    </span>
+                    {trainer.experience && (
+                      <span className="px-3 py-1 bg-blue-500/20 rounded-full text-blue-400 text-sm flex items-center gap-1">
+                        <TrophyIcon className="w-3 h-3" />
+                        {trainer.experience}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Follow Button for Users */}
+                {user?.role === 'user' && (
+                  <button
+                    onClick={handleFollow}
+                    disabled={followingLoading}
+                    className={`px-6 py-2 rounded-xl font-semibold transition flex items-center gap-2 ${
+                      isFollowing 
+                        ? 'bg-red-500/20 text-red-400 border border-red-500 hover:bg-red-500/30' 
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }`}
+                  >
+                    {followingLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : isFollowing ? (
+                      <>
+                        <HeartSolidIcon className="w-4 h-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <HeartIcon className="w-4 h-4" />
+                        Follow
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-              {trainer.phone && (
-                <div className="flex items-center gap-2 mt-1 text-gray-400 text-sm">
-                  <PhoneIcon className="w-4 h-4" />
-                  <span>{trainer.phone}</span>
-                </div>
-              )}
-              {trainer.address && (
-                <div className="flex items-center gap-2 mt-1 text-gray-400 text-sm">
-                  <MapPinIcon className="w-4 h-4" />
-                  <span>{trainer.address}</span>
-                </div>
-              )}
               
-              <div className="flex flex-wrap gap-4 mt-4">
+              {/* Stats */}
+              <div className="flex flex-wrap gap-6 mt-6">
                 <div className="flex items-center gap-2">
-                  <VideoCameraIcon className="w-4 h-4 text-purple-400" />
-                  <span className="text-white">{courses.length} Courses</span>
+                  <UserGroupIcon className="w-5 h-5 text-purple-400" />
+                  <div>
+                    <p className="text-white font-semibold">{followersCount}</p>
+                    <p className="text-gray-500 text-xs">Followers</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DocumentTextIcon className="w-4 h-4 text-blue-400" />
-                  <span className="text-white">{blogs.length} Blogs</span>
+                  <VideoCameraIcon className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="text-white font-semibold">{courses.length}</p>
+                    <p className="text-gray-500 text-xs">Courses</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StarIcon className="w-4 h-4 text-yellow-500" />
-                  <span className="text-white">4.9 Rating</span>
+                  <DocumentTextIcon className="w-5 h-5 text-green-400" />
+                  <div>
+                    <p className="text-white font-semibold">{blogs.length}</p>
+                    <p className="text-gray-500 text-xs">Blogs</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <UserIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-white">{trainer.followers || 0} Followers</span>
+                  <StarIcon className="w-5 h-5 text-yellow-500" />
+                  <div>
+                    <p className="text-white font-semibold">4.9</p>
+                    <p className="text-gray-500 text-xs">Rating</p>
+                  </div>
                 </div>
+              </div>
+              
+              {/* Contact Info */}
+              <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-400">
+                <div className="flex items-center gap-1">
+                  <EnvelopeIcon className="w-4 h-4" />
+                  <span>{trainer.email}</span>
+                </div>
+                {trainer.phone && (
+                  <div className="flex items-center gap-1">
+                    <PhoneIcon className="w-4 h-4" />
+                    <span>{trainer.phone}</span>
+                  </div>
+                )}
+                {trainer.address && (
+                  <div className="flex items-center gap-1">
+                    <MapPinIcon className="w-4 h-4" />
+                    <span>{trainer.address}</span>
+                  </div>
+                )}
               </div>
             </div>
             
-            {/* ✅ MESSAGE BUTTON - RIGHT SIDE */}
+            {/* Action Buttons */}
             <div className="md:text-right">
               {user?.role === 'user' && (
                 <button
                   onClick={handleStartChat}
-                  className="w-full md:w-auto px-6 py-2 bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                  className="w-full md:w-auto px-6 py-2 bg-blue-600 rounded-xl text-white hover:bg-blue-700 transition flex items-center justify-center gap-2"
                 >
                   <ChatBubbleLeftRightIcon className="w-5 h-5" />
                   Message
@@ -195,96 +300,216 @@ const TrainerProfile = () => {
               )}
               
               {user?.role === 'owner' && (
-                <>
-                  <div className="bg-white/10 rounded-lg p-4 mb-3">
-                    <label className="text-gray-400 text-sm block mb-2">Select Your Gym to Hire</label>
-                    <select
-                      value={selectedGym}
-                      onChange={(e) => setSelectedGym(e.target.value)}
-                      className="w-full px-3 py-2 bg-black/50 rounded-lg text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="">Select a gym...</option>
-                      {gyms.map(gym => (
-                        <option key={gym._id} value={gym._id}>{gym.name}</option>
-                      ))}
-                    </select>
-                    {gyms.length === 0 && (
-                      <p className="text-yellow-400 text-xs mt-2">
-                        You don't have any gyms yet. <button onClick={() => navigate('/owner/create-gym')} className="text-purple-400 underline">Create one</button>
-                      </p>
-                    )}
-                  </div>
+                <div className="bg-white/10 rounded-xl p-4 min-w-64">
+                  <label className="text-gray-400 text-sm block mb-2">Select Your Gym to Hire</label>
+                  <select
+                    value={selectedGym}
+                    onChange={(e) => setSelectedGym(e.target.value)}
+                    className="w-full px-3 py-2 bg-black/50 rounded-lg text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500 mb-3"
+                  >
+                    <option value="">Select a gym...</option>
+                    {gyms.map(gym => (
+                      <option key={gym._id} value={gym._id}>{gym.name}</option>
+                    ))}
+                  </select>
+                  {gyms.length === 0 && (
+                    <p className="text-yellow-400 text-xs mb-2">
+                      You don't have any gyms yet. 
+                      <button onClick={() => navigate('/owner/create-gym')} className="text-purple-400 underline ml-1">Create one</button>
+                    </p>
+                  )}
                   <button
                     onClick={handleHire}
                     disabled={!selectedGym || hiring || gyms.length === 0}
-                    className="w-full py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full py-2 bg-purple-600 rounded-xl text-white hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <BriefcaseIcon className="w-4 h-4" />
                     {hiring ? 'Sending...' : 'Send Hiring Request'}
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
         </div>
+      </div>
 
-        {trainer.bio && (
-          <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-3">About</h2>
-            <p className="text-gray-300 leading-relaxed">{trainer.bio}</p>
-            <div className="flex flex-wrap gap-4 mt-4">
-              {trainer.specialty && (
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Specialty:</span>
-                  <span className="text-purple-400">{trainer.specialty}</span>
+      {/* Content Section */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Bio & Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Bio Section */}
+            <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+              <h2 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+                <UserIcon className="w-5 h-5 text-purple-400" />
+                About Me
+              </h2>
+              <p className="text-gray-300 leading-relaxed">
+                {trainer.bio || "This trainer hasn't added a bio yet. Stay tuned for more information!"}
+              </p>
+              
+              {/* Specialty & Experience Tags */}
+              <div className="flex flex-wrap gap-3 mt-4">
+                {trainer.specialty && (
+                  <span className="px-3 py-1 bg-purple-500/10 rounded-full text-purple-400 text-sm flex items-center gap-1">
+                    <CheckBadgeIcon className="w-3 h-3" />
+                    {trainer.specialty}
+                  </span>
+                )}
+                {trainer.experience && (
+                  <span className="px-3 py-1 bg-blue-500/10 rounded-full text-blue-400 text-sm flex items-center gap-1">
+                    <TrophyIcon className="w-3 h-3" />
+                    {trainer.experience}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Courses Section - Clickable */}
+            {courses.length > 0 && (
+              <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+                <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                  <VideoCameraIcon className="w-5 h-5 text-purple-400" />
+                  My Courses ({courses.length})
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {courses.map(course => (
+                    <div
+                      key={course._id}
+                      onClick={() => handleCourseClick(course._id)}
+                      className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition cursor-pointer group"
+                    >
+                      <div className="flex items-start gap-3">
+                        {course.thumbnail ? (
+                          <img src={course.thumbnail} alt={course.title} className="w-16 h-16 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-purple-600 flex items-center justify-center">
+                            <VideoCameraIcon className="w-6 h-6 text-white" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="text-white font-semibold group-hover:text-purple-400 transition">
+                            {course.title}
+                          </h3>
+                          <p className="text-gray-400 text-sm mt-1 line-clamp-2">{course.description}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-purple-400 font-bold text-sm">₹{course.price}</span>
+                            <span className="text-gray-500 text-xs">{course.enrolledUsers?.length || 0} students</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {trainer.experience && (
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Experience:</span>
-                  <span className="text-purple-400">{trainer.experience}</span>
+              </div>
+            )}
+
+            {/* Blogs Section - Fixed likes and comments count */}
+            {blogs.length > 0 && (
+              <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+                <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                  <DocumentTextIcon className="w-5 h-5 text-green-400" />
+                  Recent Blogs ({blogs.length})
+                </h2>
+                <div className="space-y-3">
+                  {blogs.slice(0, 5).map(blog => {
+                    // Calculate counts from arrays
+                    const likeCount = blog.likes?.length || blog.likeCount || 0;
+                    const commentCount = blog.comments?.length || blog.commentCount || 0;
+                    
+                    return (
+                      <div
+                        key={blog._id}
+                        onClick={() => handleBlogClick(blog._id)}
+                        className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-white font-semibold">{blog.title}</h3>
+                            <p className="text-gray-400 text-sm mt-1 line-clamp-2">
+                              {blog.excerpt || blog.content?.substring(0, 100)}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <HeartIcon className="w-3 h-3" />
+                                {likeCount} likes
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <ChatBubbleLeftRightIcon className="w-3 h-3" />
+                                {commentCount} comments
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" />
+                                {new Date(blog.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          {blog.featuredImage && (
+                            <img 
+                              src={blog.featuredImage} 
+                              alt={blog.title} 
+                              className="w-16 h-16 rounded-lg object-cover ml-3" 
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+                {blogs.length > 5 && (
+                  <button
+                    onClick={() => navigate('/user/blogs')}
+                    className="mt-4 text-purple-400 text-sm hover:text-purple-300 transition"
+                  >
+                    View all {blogs.length} blogs →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Quick Info */}
+          <div className="space-y-6">
+            {/* Stats Card */}
+            <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+              <h3 className="text-white font-semibold mb-4">Quick Stats</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Member Since</span>
+                  <span className="text-white">{new Date(trainer.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Total Students</span>
+                  <span className="text-white">{courses.reduce((acc, c) => acc + (c.enrolledUsers?.length || 0), 0)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Total Blogs</span>
+                  <span className="text-white">{blogs.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Total Courses</span>
+                  <span className="text-white">{courses.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Social / Connect Card - Email as anchor tag */}
+            <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+              <h3 className="text-white font-semibold mb-4">Connect</h3>
+              <div className="space-y-3">
+                {user?.role === 'user' && (
+                  <button
+                    onClick={handleStartChat}
+                    className="w-full py-2 bg-blue-600 rounded-xl text-white hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                  >
+                    <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                    Send Message
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        )}
-
-        {courses.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Courses by {trainer.name}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {courses.map(course => (
-                <div key={course._id} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h3 className="text-white font-semibold">{course.title}</h3>
-                  <p className="text-gray-400 text-sm mt-1">{course.enrolledUsers?.length || 0} students</p>
-                  <p className="text-purple-400 text-sm mt-2">${course.price}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {blogs.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-4">Recent Blogs</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {blogs.map(blog => (
-                <div key={blog._id} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h3 className="text-white font-semibold">{blog.title}</h3>
-                  <p className="text-gray-400 text-sm mt-1">{blog.views || 0} views</p>
-                  <p className="text-gray-500 text-xs mt-2">{new Date(blog.createdAt).toLocaleDateString()}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {courses.length === 0 && blogs.length === 0 && !trainer.bio && (
-          <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10">
-            <UserIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
-            <p className="text-gray-400">No additional information available yet.</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
