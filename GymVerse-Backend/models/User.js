@@ -63,14 +63,37 @@ const userSchema = new mongoose.Schema(
     },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-appliedGyms: [
-  {
-    gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym' },
-    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    appliedAt: { type: Date, default: Date.now },
-    source: { type: String, enum: ['trainer', 'owner'], default: 'trainer' },
-  }
-],
+    ratings: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        rating: { type: Number, required: true, min: 1, max: 5 },
+        review: { type: String, default: "" },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
+    averageRating: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 },
+    appliedGyms: [
+      {
+        gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym" },
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+        appliedAt: { type: Date, default: Date.now },
+        source: {
+          type: String,
+          enum: ["trainer", "owner"],
+          default: "trainer",
+        },
+      },
+    ],
     associatedGym: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Gym",
@@ -79,6 +102,20 @@ appliedGyms: [
   },
   { timestamps: true },
 );
+
+
+// Method to update average rating
+userSchema.methods.updateAverageRating = async function() {
+  if (this.ratings.length === 0) {
+    this.averageRating = 0;
+    this.totalReviews = 0;
+  } else {
+    const sum = this.ratings.reduce((acc, r) => acc + r.rating, 0);
+    this.averageRating = parseFloat((sum / this.ratings.length).toFixed(1));
+    this.totalReviews = this.ratings.length;
+  }
+  return this.save();
+};
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

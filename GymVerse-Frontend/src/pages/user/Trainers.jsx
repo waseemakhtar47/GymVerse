@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import DashboardLayout from "../../components/DashboardLayout";
 import { trainerService } from "../../services/trainerService";
+import StarRating from "../../components/StarRating";
+import TrainerRatingModal from "../../components/TrainerRatingModal";
 import {
   UserGroupIcon,
   UserIcon,
@@ -9,12 +12,13 @@ import {
   DocumentTextIcon,
   StarIcon,
   HeartIcon,
-  ChatBubbleLeftRightIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
 
 const Trainers = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [trainers, setTrainers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -22,6 +26,10 @@ const Trainers = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const [followingLoading, setFollowingLoading] = useState({});
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [selectedTrainerForRating, setSelectedTrainerForRating] = useState(null);
+  const [selectedTrainerForReviews, setSelectedTrainerForReviews] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -73,9 +81,13 @@ const Trainers = () => {
     return following.some((t) => t._id === trainerId);
   };
 
-  // ✅ Sirf View Profile button se page khulega, card click se kuch nahi
   const handleViewProfile = (trainerId) => {
     navigate(`/trainer-profile/${trainerId}`);
+  };
+
+  const handleRatingSubmitted = async () => {
+    await fetchData();
+    toast.success("Rating updated successfully!");
   };
 
   const getFollowingTrainers = () => {
@@ -198,9 +210,30 @@ const Trainers = () => {
                   <h3 className="text-white font-bold text-lg">
                     {trainer.name}
                   </h3>
+                  
+                  {/* ✅ Bio - Show "No bio available" if empty */}
                   <p className="text-gray-400 text-sm mt-1 line-clamp-2">
-                    {trainer.bio || "Expert fitness trainer helping people achieve their fitness goals."}
+                    {trainer.bio || "No bio available"}
                   </p>
+                  
+                  {/* Rating Display */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <StarRating
+                      rating={trainer.averageRating || 0}
+                      size="sm"
+                      readonly={true}
+                    />
+                    <span className="text-gray-400 text-xs">
+                      {trainer.averageRating
+                        ? trainer.averageRating.toFixed(1)
+                        : "New"}
+                    </span>
+                    <span className="text-gray-500 text-xs">
+                      ({trainer.totalReviews || 0}{" "}
+                      {trainer.totalReviews === 1 ? "review" : "reviews"})
+                    </span>
+                  </div>
+
                   <div className="flex items-center gap-4 mt-3 text-sm">
                     <div className="flex items-center gap-1">
                       <VideoCameraIcon className="w-4 h-4 text-purple-400" />
@@ -215,17 +248,43 @@ const Trainers = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3">
-                    <StarIcon className="w-4 h-4 text-yellow-500" />
-                    <span className="text-gray-300 text-sm">4.9</span>
-                    <span className="text-gray-500 text-xs">
-                      ({trainer.followers || 0} followers)
-                    </span>
-                  </div>
-                  {/* ✅ Sirf View Profile button - Card click se kuch nahi hoga */}
+                  
+                  {/* ✅ Removed hardcoded 4.9 rating */}
+
+                  {/* Buttons Row - Rate and Reviews for following trainers */}
+                  {user?.role === "user" && isFollowing(trainer._id) && (
+                    <div className="flex gap-2 mt-3">
+                      {/* Rate Button - Sirf rating submit karne ke liye */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTrainerForRating(trainer);
+                          setShowRatingModal(true);
+                        }}
+                        className="flex-1 py-1.5 border border-yellow-500 rounded-lg text-yellow-400 text-xs hover:bg-yellow-500/10 transition flex items-center justify-center gap-1"
+                      >
+                        <StarIcon className="w-3 h-3" />
+                        Rate
+                      </button>
+                      {/* Reviews Button - Sirf reviews dekhne ke liye (Reviews tab directly open hoga) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTrainerForReviews(trainer);
+                          setShowReviewsModal(true);
+                        }}
+                        className="flex-1 py-1.5 border border-blue-500 rounded-lg text-blue-400 text-xs hover:bg-blue-500/10 transition flex items-center justify-center gap-1"
+                      >
+                        <EyeIcon className="w-3 h-3" />
+                        Reviews
+                      </button>
+                    </div>
+                  )}
+
+                  {/* View Profile Button */}
                   <button
                     onClick={() => handleViewProfile(trainer._id)}
-                    className="mt-4 w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition"
+                    className="mt-3 w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition"
                   >
                     View Profile
                   </button>
@@ -235,6 +294,32 @@ const Trainers = () => {
           </div>
         )}
       </div>
+
+      {/* Trainer Rating Modal - Rate mode only */}
+      {showRatingModal && selectedTrainerForRating && (
+        <TrainerRatingModal
+          trainer={selectedTrainerForRating}
+          mode="rate"
+          onClose={() => {
+            setShowRatingModal(false);
+            setSelectedTrainerForRating(null);
+          }}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
+
+      {/* Trainer Reviews Modal - Reviews mode only (saare reviews dikhenge) */}
+      {showReviewsModal && selectedTrainerForReviews && (
+        <TrainerRatingModal
+          trainer={selectedTrainerForReviews}
+          mode="reviews"
+          onClose={() => {
+            setShowReviewsModal(false);
+            setSelectedTrainerForReviews(null);
+          }}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
     </DashboardLayout>
   );
 };

@@ -18,7 +18,16 @@ import toast from 'react-hot-toast';
 
 const Chat = () => {
   const { user } = useAuth();
-  const { onlineUsers, newMessage, joinChat, sendMessage, markRead } = useChat();
+  const { 
+    onlineUsers, 
+    newMessage, 
+    joinChat, 
+    sendMessage, 
+    markRead, 
+    unreadMessages, 
+    resetUnreadForChat,
+    leaveChat
+  } = useChat();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [chats, setChats] = useState([]);
@@ -36,19 +45,37 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const initialChatId = searchParams.get('chatId');
+  const initialChatProcessed = useRef(false);
+  const isSelectingChat = useRef(false);
 
   useEffect(() => {
     fetchChats();
+    
+    return () => {
+      leaveChat();
+    };
   }, []);
 
+  // Handle initial chat from notification - ONLY ONCE
   useEffect(() => {
-    if (newMessage && selectedChat && newMessage.chatId === selectedChat._id) {
+    if (chats.length > 0 && initialChatId && !initialChatProcessed.current) {
+      const chat = chats.find(c => c._id === initialChatId);
+      if (chat) {
+        initialChatProcessed.current = true;
+        selectChat(chat, true);
+      }
+    }
+  }, [chats, initialChatId]);
+
+  // Handle new message when chat is open
+  useEffect(() => {
+    if (newMessage && selectedChat && newMessage.chatId === selectedChat._id && !isSelectingChat.current) {
+      // Check if message already exists
       setMessages(prev => {
         const exists = prev.some(msg => msg._id === newMessage.message._id);
         if (exists) return prev;
         return [...prev, newMessage.message];
       });
-      markRead(selectedChat._id, user._id);
       scrollToBottom();
     }
   }, [newMessage, selectedChat]);
@@ -57,16 +84,6 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    if (initialChatId && chats.length > 0) {
-      const chat = chats.find(c => c._id === initialChatId);
-      if (chat) {
-        selectChat(chat);
-      }
-    }
-  }, [initialChatId, chats]);
-
-  // Search users for new chat
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       if (searchUsers.length >= 2) {
@@ -91,20 +108,48 @@ const Chat = () => {
     }
   };
 
-  const selectChat = async (chat) => {
+  const selectChat = async (chat, fromNotification = false) => {
+    // Prevent multiple selections
+    if (isSelectingChat.current) return;
+    isSelectingChat.current = true;
+    
+    console.log('Selecting chat:', chat._id, 'fromNotification:', fromNotification);
+    
+    // Leave previous chat
+    leaveChat();
+    
     setSelectedChat(chat);
-    setLoading(true);
+    
     try {
       const res = await chatService.getChatMessages(chat._id);
       setMessages(res.data.data || []);
+      
+      // Join new chat and mark as read
       joinChat(chat._id);
       markRead(chat._id, user._id);
+      resetUnreadForChat(chat._id);
+      
+      // Clear URL parameter after opening
+      if (fromNotification) {
+        navigate(window.location.pathname, { replace: true });
+      }
+      
+      // Update chats list to remove unread count
+      setChats(prev => prev.map(c => 
+        c._id === chat._id 
+          ? { ...c, unreadCount: 0 }
+          : c
+      ));
+      
     } catch (error) {
       console.error('Failed to fetch messages:', error);
       toast.error('Failed to load messages');
-    } finally {
-      setLoading(false);
     }
+    
+    setTimeout(() => {
+      isSelectingChat.current = false;
+    }, 500);
+    
     inputRef.current?.focus();
   };
 
@@ -163,7 +208,8 @@ const Chat = () => {
     
     try {
       const res = await chatService.sendMessage(selectedChat._id, messageText);
-      setMessages(prev => [...prev, res.data.data]);
+      const newMsg = res.data.data;
+      setMessages(prev => [...prev, newMsg]);
       sendMessage(selectedChat._id, user._id, receiverId, messageText);
       scrollToBottom();
       
@@ -181,7 +227,6 @@ const Chat = () => {
     }
   };
 
-  // Clear all messages in selected chat
   const handleClearChat = async () => {
     if (!selectedChat) return;
     
@@ -207,7 +252,6 @@ const Chat = () => {
     }
   };
 
-  // ✅ Delete entire chat (remove from sidebar)
   const handleDeleteChat = async () => {
     if (!selectedChat) return;
     
@@ -231,17 +275,25 @@ const Chat = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const isUserOnline = (userId) => {
     return onlineUsers.includes(userId);
   };
 
+  const getUnreadCount = (chat) => {
+    const unreadFromChat = chat.unreadCount || 0;
+    const unreadFromContext = unreadMessages?.[chat._id] || 0;
+    return unreadFromChat + unreadFromContext;
+  };
+
   if (loading && chats.length === 0) {
     return (
       <DashboardLayout title="Messages" role={user?.role}>
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-400">Loading chats...</p>
@@ -280,19 +332,19 @@ const Chat = () => {
               chats.map((chat) => {
                 const otherUser = chat.otherParticipant;
                 const isOnline = isUserOnline(otherUser?._id);
-                const unread = chat.unreadCount || 0;
+                const unread = getUnreadCount(chat);
                 
                 return (
                   <div
                     key={chat._id}
-                    onClick={() => selectChat(chat)}
+                    onClick={() => selectChat(chat, false)}
                     className={`p-4 border-b border-white/10 cursor-pointer transition hover:bg-white/10 ${
                       selectedChat?._id === chat._id ? 'bg-white/10' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                           {otherUser?.profilePic ? (
                             <img src={otherUser.profilePic} alt={otherUser.name} className="w-full h-full object-cover" />
                           ) : (
@@ -331,7 +383,7 @@ const Chat = () => {
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                       {selectedChat.otherParticipant?.profilePic ? (
                         <img src={selectedChat.otherParticipant.profilePic} alt={selectedChat.otherParticipant.name} className="w-full h-full object-cover" />
                       ) : (
@@ -351,7 +403,6 @@ const Chat = () => {
                 </div>
                 
                 <div className="flex gap-2">
-                  {/* Clear Chat Button */}
                   <button
                     onClick={handleClearChat}
                     disabled={clearing || messages.length === 0}
@@ -360,8 +411,6 @@ const Chat = () => {
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
-                  
-                  {/* ✅ Delete Chat Button */}
                   <button
                     onClick={handleDeleteChat}
                     disabled={deleting}
@@ -386,7 +435,7 @@ const Chat = () => {
                     return (
                       <div key={msg._id || idx} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] ${isSender ? 'bg-purple-600' : 'bg-gray-700'} rounded-lg px-4 py-2`}>
-                          <p className="text-white text-sm break-words">{msg.message}</p>
+                          <p className="text-white text-sm wrap-break-word">{msg.message}</p>
                           <p className="text-gray-300 text-xs mt-1 text-right">
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
                           </p>
@@ -469,7 +518,7 @@ const Chat = () => {
                       className="flex items-center gap-3 p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition"
                     >
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
                           {result.profilePic ? (
                             <img src={result.profilePic} alt={result.name} className="w-full h-full object-cover" />
                           ) : (

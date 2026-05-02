@@ -302,10 +302,6 @@ const Courses = () => {
 
                       <div className="flex items-center gap-3 mb-4 text-xs text-gray-500">
                         <div className="flex items-center gap-1">
-                          <StarIcon className="w-3 h-3 text-yellow-500" />
-                          <span>4.8</span>
-                        </div>
-                        <div className="flex items-center gap-1">
                           <UserIcon className="w-3 h-3" />
                           <span>
                             {course.enrolledUsers?.length || 0} students

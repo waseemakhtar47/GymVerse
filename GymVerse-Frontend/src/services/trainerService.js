@@ -22,4 +22,7 @@ export const trainerService = {
     return api.post(`/trainers/apply/${gymId}`, data);
   },
   getMyStudents: () => api.get('/trainers/my-students'),
+  getTrainerRatings: (trainerId) => api.get(`/trainers/${trainerId}/ratings`),
+  addTrainerRating: (trainerId, rating, review) => api.post(`/trainers/${trainerId}/ratings`, { rating, review }),
+  deleteTrainerRating: (trainerId) => api.delete(`/trainers/${trainerId}/ratings`),
 };

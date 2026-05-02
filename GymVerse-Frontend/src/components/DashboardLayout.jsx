@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -11,8 +12,6 @@ import {
   ArrowRightOnRectangleIcon,
   MapPinIcon,
   CreditCardIcon,
-  ChartBarIcon,
-  BookOpenIcon,
   PlusCircleIcon,
   BuildingOfficeIcon,
   BriefcaseIcon,
@@ -22,11 +21,20 @@ import {
 
 const DashboardLayout = ({ children, title }) => {
   const { user, logout } = useAuth();
+  const { totalUnreadCount } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+
+  useEffect(() => {
+    setHasUnreadChat(totalUnreadCount > 0);
+  }, [totalUnreadCount]);
 
   const handleLogout = () => {
+    if (user && user._id) {
+      localStorage.removeItem(`unread_${user._id}`);
+    }
     logout();
     navigate('/');
   };
@@ -112,7 +120,7 @@ const DashboardLayout = ({ children, title }) => {
                   key={item.name}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition relative ${
                     isActive
                       ? 'bg-purple-600 text-white'
                       : 'text-gray-300 hover:bg-white/10 hover:text-white'
@@ -120,6 +128,9 @@ const DashboardLayout = ({ children, title }) => {
                 >
                   <item.icon className="w-5 h-5" />
                   <span>{item.name}</span>
+                  {item.name === 'Chat' && hasUnreadChat && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+                  )}
                 </Link>
               );
             })}

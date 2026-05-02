@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { useChat } from "./context/ChatContext";
+import NotificationPopup from "./components/NotificationPopup";
+import { useNavigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -60,301 +63,327 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
+  const { isAuthenticated, user } = useAuth();
+  const { showNotification, notificationData, clearNotification } = useChat();
+  const navigate = useNavigate();
+
+  const handleNotificationView = (chatId) => {
+    if (!isAuthenticated || !user) {
+      // Don't navigate if not logged in
+      clearNotification();
+      return;
+    }
+    const role = user?.role || "user";
+    navigate(`/${role}/chat?chatId=${chatId}`);
+  };
+
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
-      <Route path="/gym-details/:id" element={<GymDetails />} />
-      <Route path="/course-player/:courseId" element={<CoursePlayer />} />
-      {/* User Routes */}
-      <Route
-        path="/user/dashboard"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <UserDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/chat"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <Chat />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/settings"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/blogs"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <BlogFeed />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/gyms"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <GymDiscovery />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/memberships"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <MyMemberships />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/courses"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <Courses />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/trainers"
-        element={
-          <ProtectedRoute allowedRoles={["user"]}>
-            <Trainers />
-          </ProtectedRoute>
-        }
-      />
-      {/* Trainer Routes */}
-      <Route
-        path="/trainer/dashboard"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <TrainerDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/chat"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <Chat />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/my-gyms"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <MyGyms />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/my-requests"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <MyRequests />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/settings"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/blogs"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <BlogFeed />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/create-blog"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <CreateBlog />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/courses"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <MyCourses />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/create-course"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <CreateCourse />
-          </ProtectedRoute>
-        }
-      />
+    <>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/trainer-profile/:id" element={<TrainerProfile />} />
+        <Route path="/gym-details/:id" element={<GymDetails />} />
+        <Route path="/course-player/:courseId" element={<CoursePlayer />} />
 
-      <Route
-        path="/trainer/edit-course/:id"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <EditCourse />
-          </ProtectedRoute>
-        }
-      />
+        {/* User Routes */}
+        <Route
+          path="/user/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <UserDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/chat"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/settings"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/blogs"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <BlogFeed />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/gyms"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <GymDiscovery />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/memberships"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <MyMemberships />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/courses"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <Courses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user/trainers"
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <Trainers />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/trainer/followers"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <Followers />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/available-gyms"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <AvailableGyms />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trainer/my-applications"
-        element={
-          <ProtectedRoute allowedRoles={["trainer"]}>
-            <MyApplications />
-          </ProtectedRoute>
-        }
-      />
-      {/* Owner Routes */}
-      <Route
-        path="/owner/qr-verification"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <QRVerification />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/dashboard"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <OwnerDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/chat"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <Chat />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/sent-requests"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <AllSentRequests />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/trainer-requests"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <AllTrainerRequests />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/gym-sent-requests/:gymId"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <GymSentRequests />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/settings"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/gyms"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <ManageGyms />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/create-gym"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <CreateGym />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/edit-gym/:id"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <EditGym />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/memberships/:gymId"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <GymMemberships />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/gym-applications/:gymId"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <GymApplications />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/gym-trainers/:gymId"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <GymTrainers />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/owner/trainers"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <OwnerTrainers />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+        {/* Trainer Routes */}
+        <Route
+          path="/trainer/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <TrainerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/chat"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/my-gyms"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <MyGyms />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/my-requests"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <MyRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/settings"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/blogs"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <BlogFeed />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/create-blog"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <CreateBlog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/courses"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <MyCourses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/create-course"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <CreateCourse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/edit-course/:id"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <EditCourse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/followers"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <Followers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/available-gyms"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <AvailableGyms />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/my-applications"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <MyApplications />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Owner Routes */}
+        <Route
+          path="/owner/qr-verification"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <QRVerification />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <OwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/chat"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/sent-requests"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <AllSentRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/trainer-requests"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <AllTrainerRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/gym-sent-requests/:gymId"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <GymSentRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/settings"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/gyms"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <ManageGyms />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/create-gym"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <CreateGym />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/edit-gym/:id"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <EditGym />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/memberships/:gymId"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <GymMemberships />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/gym-applications/:gymId"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <GymApplications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/gym-trainers/:gymId"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <GymTrainers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/trainers"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <OwnerTrainers />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+
+      {/* Notification Popup - Only show when user is authenticated */}
+      {showNotification && notificationData && isAuthenticated && user && (
+        <NotificationPopup
+          notification={notificationData}
+          onClose={clearNotification}
+          onView={handleNotificationView}
+        />
+      )}
+    </>
   );
 }
 

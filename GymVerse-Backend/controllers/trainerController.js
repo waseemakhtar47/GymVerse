@@ -698,6 +698,151 @@ const getTrainerStudents = async (req, res) => {
   }
 };
 
+// @desc    Add or update rating for a trainer
+const addTrainerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, review } = req.body;
+    const userId = req.user.id;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
+    
+    const trainer = await User.findById(id);
+    if (!trainer || trainer.role !== 'trainer') {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    // Check if user is following this trainer (can only rate if following)
+    const isFollowing = trainer.followers?.some(f => f.toString() === userId);
+    
+    if (!isFollowing) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You can only rate trainers you follow' 
+      });
+    }
+    
+    // Check if user already rated this trainer
+    const existingRatingIndex = trainer.ratings.findIndex(
+      r => r.userId.toString() === userId
+    );
+    
+    if (existingRatingIndex !== -1) {
+      trainer.ratings[existingRatingIndex].rating = rating;
+      trainer.ratings[existingRatingIndex].review = review || '';
+      trainer.ratings[existingRatingIndex].updatedAt = new Date();
+    } else {
+      trainer.ratings.push({
+        userId: userId,
+        rating: rating,
+        review: review || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+    
+    await trainer.updateAverageRating();
+    await trainer.populate('ratings.userId', 'name profilePic');
+    
+    res.json({ 
+      success: true, 
+      message: existingRatingIndex !== -1 ? 'Rating updated successfully' : 'Rating added successfully',
+      data: {
+        averageRating: trainer.averageRating,
+        totalReviews: trainer.totalReviews,
+        userRating: rating,
+        userReview: review || ''
+      }
+    });
+  } catch (error) {
+    console.error('addTrainerRating error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get trainer ratings and reviews
+const getTrainerRatings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const trainer = await User.findById(id).populate('ratings.userId', 'name profilePic');
+    
+    if (!trainer || trainer.role !== 'trainer') {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    // Get user's own rating if logged in
+    let userRating = null;
+    if (req.user && req.user.id) {
+      const userRatingObj = trainer.ratings.find(
+        r => r.userId._id.toString() === req.user.id
+      );
+      if (userRatingObj) {
+        userRating = {
+          rating: userRatingObj.rating,
+          review: userRatingObj.review,
+          createdAt: userRatingObj.createdAt
+        };
+      }
+    }
+    
+    // Check if user can rate (is following)
+    let canRate = false;
+    if (req.user && req.user.id) {
+      canRate = trainer.followers?.some(f => f.toString() === req.user.id) || false;
+    }
+    
+    const sortedRatings = [...trainer.ratings].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    res.json({ 
+      success: true, 
+      data: {
+        averageRating: trainer.averageRating,
+        totalReviews: trainer.totalReviews,
+        ratings: sortedRatings,
+        userRating: userRating,
+        canRate: canRate
+      }
+    });
+  } catch (error) {
+    console.error('getTrainerRatings error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete user's own rating for trainer
+const deleteTrainerRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const trainer = await User.findById(id);
+    if (!trainer || trainer.role !== 'trainer') {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    const ratingIndex = trainer.ratings.findIndex(
+      r => r.userId.toString() === userId
+    );
+    
+    if (ratingIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Rating not found' });
+    }
+    
+    trainer.ratings.splice(ratingIndex, 1);
+    await trainer.updateAverageRating();
+    
+    res.json({ success: true, message: 'Rating deleted successfully' });
+  } catch (error) {
+    console.error('deleteTrainerRating error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
 
   getAllTrainers,
@@ -721,4 +866,7 @@ module.exports = {
   cancelSentRequest,
   getApprovedGymIds,
   getTrainerStudents,
+  addTrainerRating,
+  getTrainerRatings,
+  deleteTrainerRating,
 };
