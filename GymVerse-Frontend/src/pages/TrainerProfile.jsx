@@ -21,7 +21,9 @@ import {
   UserGroupIcon,
   BookOpenIcon,
   TrophyIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  BuildingOfficeIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
@@ -35,6 +37,8 @@ const TrainerProfile = () => {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gyms, setGyms] = useState([]);
+  const [associatedGyms, setAssociatedGyms] = useState([]);
+  const [loadingGyms, setLoadingGyms] = useState(false);
   const [selectedGym, setSelectedGym] = useState('');
   const [hiring, setHiring] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -43,6 +47,7 @@ const TrainerProfile = () => {
 
   useEffect(() => {
     fetchTrainerData();
+    fetchAssociatedGyms();
     if (user?.role === 'owner') {
       fetchGyms();
     }
@@ -69,6 +74,18 @@ const TrainerProfile = () => {
       navigate(-1);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAssociatedGyms = async () => {
+    setLoadingGyms(true);
+    try {
+      const res = await trainerService.getTrainerAssociatedGyms(id);
+      setAssociatedGyms(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch associated gyms:', error);
+    } finally {
+      setLoadingGyms(false);
     }
   };
 
@@ -404,7 +421,7 @@ const TrainerProfile = () => {
               </div>
             )}
 
-            {/* Blogs Section - Fixed likes and comments count */}
+            {/* Blogs Section - Clickable */}
             {blogs.length > 0 && (
               <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
@@ -413,7 +430,6 @@ const TrainerProfile = () => {
                 </h2>
                 <div className="space-y-3">
                   {blogs.slice(0, 5).map(blog => {
-                    // Calculate counts from arrays
                     const likeCount = blog.likes?.length || blog.likeCount || 0;
                     const commentCount = blog.comments?.length || blog.commentCount || 0;
                     
@@ -493,20 +509,61 @@ const TrainerProfile = () => {
               </div>
             </div>
 
-            {/* Social / Connect Card - Email as anchor tag */}
+            {/* ✅ Associated Gyms Section */}
             <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
-              <h3 className="text-white font-semibold mb-4">Connect</h3>
-              <div className="space-y-3">
-                {user?.role === 'user' && (
-                  <button
-                    onClick={handleStartChat}
-                    className="w-full py-2 bg-blue-600 rounded-xl text-white hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                  >
-                    <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                    Send Message
-                  </button>
-                )}
-              </div>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <BuildingOfficeIcon className="w-5 h-5 text-purple-400" />
+                Associated Gyms
+              </h3>
+              {loadingGyms ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-400 ml-2 text-sm">Loading gyms...</p>
+                </div>
+              ) : associatedGyms.length === 0 ? (
+                <div className="text-center py-4">
+                  <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-500 mb-2" />
+                  <p className="text-gray-400 text-sm">Not associated with any gym yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {associatedGyms.map((gym) => (
+                    <div
+                      key={gym._id}
+                      onClick={() => navigate(`/gym-details/${gym._id}`)}
+                      className="bg-white/5 rounded-lg p-3 cursor-pointer hover:bg-white/10 transition group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <BuildingOfficeIcon className="w-8 h-8 text-purple-400" />
+                        <div className="flex-1">
+                          <p className="text-white font-semibold group-hover:text-purple-400 transition">
+                            {gym.name}
+                          </p>
+                          {gym.address && (
+                            <p className="text-gray-400 text-xs mt-1 line-clamp-1">
+                              <MapPinIcon className="w-3 h-3 inline mr-1" />
+                              {gym.address}
+                            </p>
+                          )}
+                          {gym.timings && (
+                            <p className="text-gray-500 text-xs mt-1">
+                              <ClockIcon className="w-3 h-3 inline mr-1" />
+                              {gym.timings.open} - {gym.timings.close}
+                            </p>
+                          )}
+                          <p className="text-gray-500 text-xs mt-1">
+                            <CalendarIcon className="w-3 h-3 inline mr-1" />
+                            Associated since: {new Date(gym.joinedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-500 group-hover:text-purple-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -843,6 +843,38 @@ const deleteTrainerRating = async (req, res) => {
   }
 };
 
+
+// @desc    Get trainer's associated gyms (approved only)
+const getTrainerAssociatedGyms = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const trainer = await User.findById(id).populate('appliedGyms.gymId');
+    if (!trainer || trainer.role !== 'trainer') {
+      return res.status(404).json({ success: false, message: 'Trainer not found' });
+    }
+    
+    // Filter only approved gyms
+    const approvedGyms = trainer.appliedGyms
+      .filter(app => app.status === 'approved' && app.gymId)
+      .map(app => ({
+        _id: app.gymId._id,
+        name: app.gymId.name,
+        address: app.gymId.address,
+        contactNumber: app.gymId.contactNumber,
+        timings: app.gymId.timings,
+        facilities: app.gymId.facilities,
+        joinedAt: app.appliedAt,
+        source: app.source
+      }));
+    
+    res.json({ success: true, data: approvedGyms });
+  } catch (error) {
+    console.error('getTrainerAssociatedGyms error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
 
   getAllTrainers,
@@ -869,4 +901,5 @@ module.exports = {
   addTrainerRating,
   getTrainerRatings,
   deleteTrainerRating,
+  getTrainerAssociatedGyms,
 };

@@ -5,6 +5,7 @@ export const trainerService = {
   getTrainerById: (id) => api.get(`/trainers/${id}`),
   getTrainerCourses: (id) => api.get(`/trainers/${id}/courses`),
   getTrainerBlogs: (id) => api.get(`/trainers/${id}/blogs`),
+  getTrainerAssociatedGyms: (id) => api.get(`/trainers/${id}/associated-gyms`), 
   followTrainer: (id) => api.post(`/trainers/${id}/follow`),
   getFollowingTrainers: () => api.get("/trainers/following"),
   getMyFollowers: () => api.get("/trainers/my/followers"),

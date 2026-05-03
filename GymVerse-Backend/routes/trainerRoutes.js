@@ -20,6 +20,7 @@ const {
   addTrainerRating,
   getTrainerRatings,
   deleteTrainerRating,
+    getTrainerAssociatedGyms,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -27,6 +28,7 @@ const router = express.Router();
 
 // Public
 router.get('/', getAllTrainers);
+
 
 // Trainer specific
 router.get('/approved-gym-ids', protect, authorize('trainer'), getApprovedGymIds);
@@ -44,6 +46,7 @@ router.get('/my-students', protect, authorize('trainer'), getTrainerStudents);
 
 // Dynamic
 // Trainer rating routes
+
 router.get('/:id', getTrainerById);
 router.get('/:id/courses', getTrainerCourses);
 router.get('/:id/blogs', getTrainerBlogs);
@@ -52,5 +55,6 @@ router.post('/:id/follow', protect, authorize('user'), followTrainer);
 router.get('/:id/ratings', getTrainerRatings);
 router.post('/:id/ratings', protect, addTrainerRating);
 router.delete('/:id/ratings', protect, deleteTrainerRating);
+router.get('/:id/associated-gyms', getTrainerAssociatedGyms);
 
 module.exports = router;
