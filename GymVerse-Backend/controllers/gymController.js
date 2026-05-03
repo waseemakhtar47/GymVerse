@@ -54,7 +54,6 @@ const getGyms = async (req, res) => {
     
     // ✅ Add populate for ownerId
     const gyms = await Gym.find(query).populate('ownerId', 'name email');
-    console.log(`📍 Found ${gyms.length} gyms for ${req.user?.role || 'public'}`);
     
     res.json({ success: true, data: gyms });
   } catch (error) {
@@ -284,7 +283,7 @@ const getGymSentRequests = async (req, res) => {
   }
 };
 
-// @desc    Get gym trainers (approved)
+// @desc    Get gym trainers (approved only)
 const getGymTrainers = async (req, res) => {
   try {
     const { id } = req.params;
@@ -292,16 +291,12 @@ const getGymTrainers = async (req, res) => {
     const gym = await Gym.findById(id);
     if (!gym) return res.status(404).json({ success: false, message: 'Gym not found' });
     
-    if (gym.ownerId.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-    
-    // Only approved trainers
+    // ✅ Public access - sabhi dekh sakte hain
     const trainers = gym.trainers.filter(t => t.status === 'approved');
     
     // Populate trainer details
     const populatedTrainers = await Promise.all(trainers.map(async (trainer) => {
-      const trainerUser = await User.findById(trainer.trainerId).select('name email profilePic phone');
+      const trainerUser = await User.findById(trainer.trainerId).select('name email profilePic phone specialty experience');
       return { ...trainer.toObject(), trainerId: trainerUser };
     }));
     
@@ -311,7 +306,6 @@ const getGymTrainers = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // @desc    Owner approves/rejects application (trainer-initiated)
 const updateApplicationStatus = async (req, res) => {
   try {
@@ -434,8 +428,6 @@ const getOwnerGyms = async (req, res) => {
       ownerId: req.user.id,
       isActive: true 
     }).populate('ownerId', 'name email');
-    
-    console.log(`📍 Owner ${req.user.name} has ${gyms.length} gyms`);
     
     res.json({ success: true, data: gyms });
   } catch (error) {

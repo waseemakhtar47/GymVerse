@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { gymService } from '../services/gymService';
-import { membershipService } from '../services/membershipService';
 import StarRating from '../components/StarRating';
-import RatingModal from '../components/RatingModal';
 import { 
   BuildingOfficeIcon, 
   MapPinIcon, 
@@ -19,17 +16,22 @@ import {
   UserIcon,
   EyeIcon,
   CalendarIcon,
-  PencilIcon
+  PencilIcon,
+  CurrencyDollarIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const GymDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Trainers state
+  const [trainers, setTrainers] = useState([]);
+  const [loadingTrainers, setLoadingTrainers] = useState(false);
   
   // Reviews state
   const [reviews, setReviews] = useState([]);
@@ -44,8 +46,9 @@ const GymDetails = () => {
 
   useEffect(() => {
     fetchGymDetails();
+    fetchGymTrainers();
     fetchReviews();
-  }, [id, user]);
+  }, [id]);
 
   const fetchGymDetails = async () => {
     setLoading(true);
@@ -57,6 +60,18 @@ const GymDetails = () => {
       setError('Gym not found');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGymTrainers = async () => {
+    setLoadingTrainers(true);
+    try {
+      const res = await gymService.getGymTrainers(id);
+      setTrainers(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch trainers:', error);
+    } finally {
+      setLoadingTrainers(false);
     }
   };
 
@@ -76,6 +91,12 @@ const GymDetails = () => {
     }
   };
 
+  const handleRatingSubmitted = async () => {
+    await fetchReviews();
+    await fetchGymDetails();
+    toast.success('Rating updated successfully!');
+  };
+
   const getFacilityIcon = (facility) => {
     const lower = facility.toLowerCase();
     if (lower.includes('wifi')) return <WifiIcon className="w-4 h-4" />;
@@ -91,12 +112,6 @@ const GymDetails = () => {
       month: 'long',
       day: 'numeric'
     });
-  };
-
-  const handleRatingSubmitted = async () => {
-    await fetchReviews();
-    await fetchGymDetails();
-    toast.success('Rating updated successfully!');
   };
 
   if (loading) {
@@ -254,14 +269,69 @@ const GymDetails = () => {
           </div>
         )}
 
-        {/* ========== REVIEWS SECTION - Sabhi Users Ke Liye ========== */}
+        {/* ✅ ASSOCIATED TRAINERS SECTION */}
+        <div className="bg-white/5 rounded-xl p-4 mb-6">
+          <h2 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <BriefcaseIcon className="w-5 h-5 text-purple-400" />
+            Associated Trainers
+          </h2>
+          
+          {loadingTrainers ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-400 ml-2 text-sm">Loading trainers...</p>
+            </div>
+          ) : trainers.length === 0 ? (
+            <div className="text-center py-6">
+              <UserGroupIcon className="w-12 h-12 mx-auto text-gray-500 mb-2" />
+              <p className="text-gray-400 text-sm">No trainers associated with this gym yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {trainers.map((trainer) => (
+                <div
+                  key={trainer._id}
+                  onClick={() => navigate(`/trainer-profile/${trainer.trainerId?._id}`)}
+                  className="bg-white/5 rounded-lg p-3 cursor-pointer hover:bg-white/10 transition group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                      {trainer.trainerId?.profilePic ? (
+                        <img src={trainer.trainerId.profilePic} alt={trainer.trainerId.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-semibold group-hover:text-purple-400 transition">
+                        {trainer.trainerId?.name || 'Unknown'}
+                      </p>
+                      {trainer.trainerId?.specialty && (
+                        <p className="text-gray-400 text-xs">{trainer.trainerId.specialty}</p>
+                      )}
+                      <p className="text-gray-500 text-xs mt-1 flex items-center gap-1">
+                        <CalendarIcon className="w-3 h-3" />
+                        Joined: {new Date(trainer.joinedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-500 group-hover:text-purple-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Reviews Section */}
         <div className="bg-white/5 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-white font-semibold flex items-center gap-2">
               <StarIcon className="w-5 h-5 text-yellow-400" />
               Member Reviews ({totalReviews})
             </h2>
-            {!canRate && user && (
+            {!canRate && (
               <p className="text-gray-500 text-xs">Buy a membership to rate this gym</p>
             )}
           </div>
@@ -297,7 +367,7 @@ const GymDetails = () => {
             </div>
           )}
 
-          {/* User's Own Rating (if exists) */}
+          {/* User's Own Rating */}
           {userRating && (
             <div className="mb-4 p-3 bg-purple-500/10 rounded-lg border border-purple-500">
               <p className="text-purple-400 text-sm font-medium mb-1">Your Review</p>
@@ -309,7 +379,7 @@ const GymDetails = () => {
             </div>
           )}
 
-          {/* All Reviews List - Sabhi Reviews Yahan Dikhenge */}
+          {/* All Reviews List */}
           {loadingReviews ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
@@ -365,7 +435,7 @@ const GymDetails = () => {
         </div>
       </div>
 
-      {/* Rating Modal - Sirf Active Members Ke Liye */}
+      {/* Rating Modal */}
       {showRatingModal && gym && (
         <RatingModal
           gym={gym}
@@ -376,8 +446,5 @@ const GymDetails = () => {
     </div>
   );
 };
-
-// Add CurrencyDollarIcon import at top if not present
-import { CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 export default GymDetails;

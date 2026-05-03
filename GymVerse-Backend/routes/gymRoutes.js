@@ -40,7 +40,7 @@ router.delete('/:id', protect, authorize('owner'), deleteGym);
 // ============== TRAINER MANAGEMENT ROUTES (Owner only) ==============
 router.get('/:id/applications', protect, authorize('owner'), getGymApplications);
 router.get('/:id/sent-requests', protect, authorize('owner'), getGymSentRequests);
-router.get('/:id/trainers', protect, authorize('owner'), getGymTrainers);
+router.get('/:id/trainers', getGymTrainers);
 router.put('/:id/applications/:trainerId', protect, authorize('owner'), updateApplicationStatus);
 router.delete('/:id/sent-requests/:trainerId', protect, authorize('owner'), cancelSentRequest);
 router.delete('/:id/trainers/:trainerId', protect, authorize('owner'), removeTrainer);
