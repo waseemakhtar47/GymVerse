@@ -40,6 +40,7 @@ import QRVerification from "./pages/owner/QRVerification";
 import CoursePlayer from "./pages/CoursePlayer";
 import EditCourse from "./pages/trainer/EditCourse";
 import MyReviews from "./pages/trainer/MyReviews";
+import FollowerProfile from "./pages/FollowerProfile";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -252,6 +253,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/trainer/follower/:id" element={<FollowerProfile />} />
+
         <Route
           path="/trainer/available-gyms"
           element={

@@ -19,8 +19,8 @@ const MyApplications = () => {
     setLoading(true);
     try {
       const res = await trainerService.getMyApplications();
-      // ✅ Pending aur rejected dono dikhao (rejected wale dubara apply kar sakte hain)
-      const apps = res.data.data || [];
+      // Filter out applications with null gymId
+      const apps = (res.data.data || []).filter(app => app.gymId !== null);
       setApplications(apps);
     } catch (error) {
       console.error('Failed to fetch applications:', error);
@@ -31,11 +31,15 @@ const MyApplications = () => {
   };
 
   const handleReapply = async (gymId) => {
+    if (!gymId) {
+      toast.error('Cannot reapply to this gym');
+      return;
+    }
     setProcessing(gymId);
     try {
       await trainerService.applyToGym(gymId);
       toast.success('Application resubmitted successfully!');
-      fetchApplications(); // Refresh list
+      fetchApplications();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reapply');
     } finally {
@@ -101,8 +105,8 @@ const MyApplications = () => {
                 <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-yellow-500/30">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-white font-semibold">{app.gymId?.name}</h4>
-                      <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
+                      <h4 className="text-white font-semibold">{app.gymId?.name || 'Unknown Gym'}</h4>
+                      <p className="text-gray-400 text-sm">{app.gymId?.address || 'Address not available'}</p>
                       <p className="text-gray-500 text-xs mt-2">Applied: {new Date(app.appliedAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
@@ -131,20 +135,22 @@ const MyApplications = () => {
                 <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-red-500/30">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-white font-semibold">{app.gymId?.name}</h4>
-                      <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
+                      <h4 className="text-white font-semibold">{app.gymId?.name || 'Unknown Gym'}</h4>
+                      <p className="text-gray-400 text-sm">{app.gymId?.address || 'Address not available'}</p>
                       <p className="text-gray-500 text-xs mt-2">Rejected on: {new Date(app.updatedAt || app.appliedAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
                       {getStatusBadge(app.status)}
-                      <button
-                        onClick={() => handleReapply(app.gymId._id)}
-                        disabled={processing === app.gymId._id}
-                        className="mt-2 text-xs bg-purple-600 px-3 py-1 rounded-lg text-white hover:bg-purple-700 flex items-center gap-1"
-                      >
-                        <ArrowPathIcon className="w-3 h-3" />
-                        Apply Again
-                      </button>
+                      {app.gymId && (
+                        <button
+                          onClick={() => handleReapply(app.gymId._id)}
+                          disabled={processing === app.gymId._id}
+                          className="mt-2 text-xs bg-purple-600 px-3 py-1 rounded-lg text-white hover:bg-purple-700 flex items-center gap-1"
+                        >
+                          <ArrowPathIcon className="w-3 h-3" />
+                          Apply Again
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -162,8 +168,8 @@ const MyApplications = () => {
                 <div key={app._id} className="bg-white/5 rounded-xl p-4 border border-green-500/30">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-white font-semibold">{app.gymId?.name}</h4>
-                      <p className="text-gray-400 text-sm">{app.gymId?.address}</p>
+                      <h4 className="text-white font-semibold">{app.gymId?.name || 'Unknown Gym'}</h4>
+                      <p className="text-gray-400 text-sm">{app.gymId?.address || 'Address not available'}</p>
                       <p className="text-gray-500 text-xs mt-2">Approved on: {new Date(app.updatedAt || app.appliedAt).toLocaleDateString()}</p>
                     </div>
                     {getStatusBadge(app.status)}

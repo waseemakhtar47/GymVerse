@@ -200,20 +200,21 @@ const getMyEnrolledCourses = async (req, res) => {
       }
     }
     
-    // Fetch updated courses
+    // ✅ Fetch updated courses with POPULATE for user details
     const updatedCourses = await Course.find({ 'enrolledUsers.userId': userId })
-      .populate('trainerId', 'name profilePic');
+      .populate('trainerId', 'name profilePic')
+      .populate('enrolledUsers.userId', 'name email profilePic phone'); // ✅ Add this
     
     // Add enrollment details to each course
     const coursesWithValidity = updatedCourses.map(course => {
       const enrollment = course.enrolledUsers.find(
-        u => u.userId.toString() === userId
+        u => u.userId._id.toString() === userId
       );
       const now = new Date();
       const isValid = enrollment?.status === 'active' && new Date(enrollment.validUntil) > now;
       
       // Check if user has rated this course
-      const userRating = course.ratings.find(r => r.userId.toString() === userId);
+      const userRating = course.ratings?.find(r => r.userId.toString() === userId);
       
       return {
         ...course.toObject(),
@@ -238,14 +239,15 @@ const getMyEnrolledCourses = async (req, res) => {
 // @desc    Get my courses (trainer)
 const getMyCourses = async (req, res) => {
   try {
-    const courses = await Course.find({ trainerId: req.user.id });
+    const courses = await Course.find({ trainerId: req.user.id })
+      .populate('enrolledUsers.userId', 'name email phone profilePic');
+    
     res.json({ success: true, data: courses });
   } catch (error) {
     console.error('getMyCourses error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // @desc    Check course access validity
 const checkCourseAccess = async (req, res) => {
   try {

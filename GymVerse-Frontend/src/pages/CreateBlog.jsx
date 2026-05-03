@@ -60,13 +60,13 @@ const CreateBlog = () => {
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
             >
-              <option value="workout">Workout</option>
-              <option value="nutrition">Nutrition</option>
-              <option value="motivation">Motivation</option>
-              <option value="recovery">Recovery</option>
-              <option value="general">General</option>
+              <option value="workout" className="bg-gray-800 text-white">Workout</option>
+              <option value="nutrition" className="bg-gray-800 text-white">Nutrition</option>
+              <option value="motivation" className="bg-gray-800 text-white">Motivation</option>
+              <option value="recovery" className="bg-gray-800 text-white">Recovery</option>
+              <option value="general" className="bg-gray-800 text-white">General</option>
             </select>
           </div>
           

@@ -6,6 +6,7 @@ import { gymService } from '../services/gymService';
 import { chatService } from '../services/chatService';
 import { blogService } from '../services/blogService';
 import { courseService } from '../services/courseService';
+import StarRating from '../components/StarRating';
 import { 
   UserIcon, 
   VideoCameraIcon, 
@@ -44,10 +45,18 @@ const TrainerProfile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingLoading, setFollowingLoading] = useState(false);
+  
+  // Trainer ratings state
+  const [trainerRatings, setTrainerRatings] = useState([]);
+  const [trainerAverageRating, setTrainerAverageRating] = useState(0);
+  const [trainerTotalReviews, setTrainerTotalReviews] = useState(0);
+  const [loadingRatings, setLoadingRatings] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     fetchTrainerData();
     fetchAssociatedGyms();
+    fetchTrainerRatings();
     if (user?.role === 'owner') {
       fetchGyms();
     }
@@ -86,6 +95,20 @@ const TrainerProfile = () => {
       console.error('Failed to fetch associated gyms:', error);
     } finally {
       setLoadingGyms(false);
+    }
+  };
+
+  const fetchTrainerRatings = async () => {
+    setLoadingRatings(true);
+    try {
+      const res = await trainerService.getTrainerRatings(id);
+      setTrainerRatings(res.data.data.ratings || []);
+      setTrainerAverageRating(res.data.data.averageRating || 0);
+      setTrainerTotalReviews(res.data.data.totalReviews || 0);
+    } catch (error) {
+      console.error('Failed to fetch trainer ratings:', error);
+    } finally {
+      setLoadingRatings(false);
     }
   };
 
@@ -180,6 +203,8 @@ const TrainerProfile = () => {
     );
   }
 
+  const isOwnerViewing = user?.role === 'trainer' && trainer?._id === user?._id;
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -251,7 +276,7 @@ const TrainerProfile = () => {
                 )}
               </div>
               
-              {/* Stats */}
+              {/* Stats - REAL RATING FIXED */}
               <div className="flex flex-wrap gap-6 mt-6">
                 <div className="flex items-center gap-2">
                   <UserGroupIcon className="w-5 h-5 text-purple-400" />
@@ -274,10 +299,11 @@ const TrainerProfile = () => {
                     <p className="text-gray-500 text-xs">Blogs</p>
                   </div>
                 </div>
+                {/* ✅ REAL RATING - Hardcoded 4.9 removed */}
                 <div className="flex items-center gap-2">
                   <StarIcon className="w-5 h-5 text-yellow-500" />
                   <div>
-                    <p className="text-white font-semibold">4.9</p>
+                    <p className="text-white font-semibold">{trainerAverageRating.toFixed(1)}</p>
                     <p className="text-gray-500 text-xs">Rating</p>
                   </div>
                 </div>
@@ -509,7 +535,7 @@ const TrainerProfile = () => {
               </div>
             </div>
 
-            {/* ✅ Associated Gyms Section */}
+            {/* Associated Gyms Section */}
             <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <BuildingOfficeIcon className="w-5 h-5 text-purple-400" />
@@ -565,6 +591,99 @@ const TrainerProfile = () => {
                 </div>
               )}
             </div>
+
+            {/* Trainer Ratings & Reviews Section - Sirf trainer khud dekh sakta hai */}
+            {isOwnerViewing && (
+              <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <StarIcon className="w-5 h-5 text-yellow-400" />
+                  My Ratings & Reviews from Users
+                </h3>
+                
+                {loadingRatings ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-400 ml-2 text-sm">Loading reviews...</p>
+                  </div>
+                ) : trainerTotalReviews === 0 ? (
+                  <div className="text-center py-4">
+                    <StarIcon className="w-12 h-12 mx-auto text-gray-500 mb-2" />
+                    <p className="text-gray-400 text-sm">No reviews yet</p>
+                    <p className="text-gray-500 text-xs mt-1">When users follow and rate you, reviews will appear here</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Rating Summary */}
+                    <div className="flex items-center gap-4 mb-4 pb-4 border-b border-white/10">
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-white">{trainerAverageRating.toFixed(1)}</p>
+                        <StarRating rating={trainerAverageRating} size="sm" readonly={true} />
+                        <p className="text-gray-400 text-xs mt-1">out of 5</p>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white text-sm">Total {trainerTotalReviews} {trainerTotalReviews === 1 ? 'review' : 'reviews'}</p>
+                        <div className="mt-2 space-y-1">
+                          {[5, 4, 3, 2, 1].map((star) => {
+                            const count = trainerRatings.filter(r => Math.floor(r.rating) === star).length;
+                            const percentage = trainerTotalReviews > 0 ? (count / trainerTotalReviews) * 100 : 0;
+                            return (
+                              <div key={star} className="flex items-center gap-2">
+                                <span className="text-yellow-400 text-xs w-6">{star}★</span>
+                                <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-yellow-400 rounded-full"
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                                <span className="text-gray-400 text-xs w-8">{count}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Reviews List */}
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {(showAllReviews ? trainerRatings : trainerRatings.slice(0, 3)).map((review, idx) => (
+                        <div key={idx} className="bg-white/5 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
+                              {review.userId?.profilePic ? (
+                                <img src={review.userId.profilePic} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                review.userId?.name?.charAt(0).toUpperCase() || 'U'
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <p className="text-white text-sm font-medium">{review.userId?.name || 'Anonymous'}</p>
+                                <StarRating rating={review.rating} size="sm" readonly={true} />
+                              </div>
+                              {review.review && (
+                                <p className="text-gray-400 text-xs mt-1">{review.review}</p>
+                              )}
+                              <p className="text-gray-500 text-xs mt-1">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {trainerRatings.length > 3 && (
+                      <button
+                        onClick={() => setShowAllReviews(!showAllReviews)}
+                        className="mt-3 text-purple-400 text-sm hover:text-purple-300 transition w-full text-center"
+                      >
+                        {showAllReviews ? 'Show less' : `View all ${trainerRatings.length} reviews →`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

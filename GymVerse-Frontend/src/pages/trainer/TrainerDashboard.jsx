@@ -19,7 +19,7 @@ import {
   CalendarIcon,
   BookOpenIcon,
   StarIcon,
-  EyeIcon
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -42,7 +42,7 @@ const TrainerDashboard = () => {
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // ✅ Ratings & Reviews state
+  // Ratings & Reviews state
   const [myRatings, setMyRatings] = useState([]);
   const [myAverageRating, setMyAverageRating] = useState(0);
   const [myTotalReviews, setMyTotalReviews] = useState(0);
@@ -92,7 +92,72 @@ const TrainerDashboard = () => {
     }
   };
 
-  // ✅ Fetch trainer's own ratings and reviews
+ const fetchStudentsList = async () => {
+  setLoadingStudents(true);
+  try {
+    const coursesRes = await courseService.getMyCourses();
+    const myCourses = coursesRes.data.data || [];
+    
+    if (myCourses.length === 0) {
+      setStudentsList([]);
+      return;
+    }
+    
+    const studentsMap = new Map();
+    
+    for (const course of myCourses) {
+      if (course.enrolledUsers && course.enrolledUsers.length > 0) {
+        for (const enrollment of course.enrolledUsers) {
+          const userData = enrollment.userId;
+          const userId = userData?._id || enrollment.userId;
+          
+          if (!userId) continue;
+          
+          const enrolledAt = enrollment.enrolledAt ? new Date(enrollment.enrolledAt) : new Date();
+          const validUntil = enrollment.validUntil ? new Date(enrollment.validUntil) : new Date();
+          const remainingDays = Math.ceil((validUntil - new Date()) / (1000 * 60 * 60 * 24));
+          const isExpired = remainingDays <= 0;
+          
+          const courseEnrollment = {
+            courseId: course._id,
+            courseTitle: course.title,
+            enrolledAt: enrolledAt,
+            validUntil: validUntil,
+            remainingDays: remainingDays > 0 ? remainingDays : 0,
+            isExpired: isExpired,
+            status: enrollment.status || (isExpired ? 'expired' : 'active')
+          };
+          
+          if (studentsMap.has(userId)) {
+            const existing = studentsMap.get(userId);
+            existing.courses.push(courseEnrollment);
+            existing.totalCourses = existing.courses.length;
+          } else {
+            studentsMap.set(userId, {
+              id: userId,
+              name: userData?.name || 'Student',
+              email: userData?.email || 'Email not available',
+              phone: userData?.phone || 'N/A',
+              profilePic: userData?.profilePic || null,
+              courses: [courseEnrollment],
+              totalCourses: 1
+            });
+          }
+        }
+      }
+    }
+    
+    const studentsArray = Array.from(studentsMap.values());
+    studentsArray.sort((a, b) => a.name.localeCompare(b.name));
+    setStudentsList(studentsArray);
+  } catch (error) {
+    console.error('Failed to fetch students list:', error);
+    toast.error('Failed to load students list');
+  } finally {
+    setLoadingStudents(false);
+  }
+};
+
   const fetchMyRatings = async () => {
     if (!user?._id) return;
     setLoadingReviews(true);
@@ -108,75 +173,12 @@ const TrainerDashboard = () => {
     }
   };
 
-  const fetchStudentsList = async () => {
-    setLoadingStudents(true);
-    try {
-      const coursesRes = await courseService.getMyCourses();
-      const myCourses = coursesRes.data.data || [];
-      
-      if (myCourses.length === 0) {
-        setStudentsList([]);
-        return;
-      }
-      
-      const studentsMap = new Map();
-      
-      for (const course of myCourses) {
-        if (course.enrolledUsers && course.enrolledUsers.length > 0) {
-          for (const enrollment of course.enrolledUsers) {
-            const userData = enrollment.userId;
-            const userId = userData?._id || enrollment.userId;
-            
-            if (!userId) continue;
-            
-            const validUntil = new Date(enrollment.validUntil);
-            const now = new Date();
-            const remainingDays = Math.ceil((validUntil - now) / (1000 * 60 * 60 * 24));
-            const isExpired = remainingDays <= 0;
-            
-            const courseEnrollment = {
-              courseId: course._id,
-              courseTitle: course.title,
-              enrolledAt: enrollment.enrolledAt,
-              validUntil: enrollment.validUntil,
-              remainingDays: remainingDays > 0 ? remainingDays : 0,
-              isExpired: isExpired,
-              status: enrollment.status || (isExpired ? 'expired' : 'active')
-            };
-            
-            if (studentsMap.has(userId)) {
-              const existing = studentsMap.get(userId);
-              existing.courses.push(courseEnrollment);
-              existing.totalCourses = existing.courses.length;
-            } else {
-              studentsMap.set(userId, {
-                id: userId,
-                name: userData?.name || 'Loading...',
-                email: userData?.email || 'Loading...',
-                phone: userData?.phone || 'N/A',
-                profilePic: userData?.profilePic || null,
-                courses: [courseEnrollment],
-                totalCourses: 1
-              });
-            }
-          }
-        }
-      }
-      
-      const studentsArray = Array.from(studentsMap.values());
-      studentsArray.sort((a, b) => a.name.localeCompare(b.name));
-      setStudentsList(studentsArray);
-    } catch (error) {
-      console.error('Failed to fetch students fallback:', error);
-      toast.error('Failed to load students list');
-    } finally {
-      setLoadingStudents(false);
+  const formatDate = (date) => {
+    if (!date) return 'Recently';
+    if (date instanceof Date && !isNaN(date)) {
+      return date.toLocaleDateString();
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
+    return 'Recently';
   };
 
   if (loading) {
@@ -341,7 +343,7 @@ const TrainerDashboard = () => {
             )}
           </div>
 
-          {/* ✅ NEW: My Ratings & Reviews Section - Trainer khud apni rating dekh sakta hai */}
+          {/* My Ratings & Reviews Section */}
           <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <StarIcon className="w-5 h-5 text-yellow-400" />
@@ -364,7 +366,6 @@ const TrainerDashboard = () => {
               </div>
             ) : (
               <>
-                {/* Rating Summary */}
                 <div className="flex items-center gap-6 mb-6 pb-4 border-b border-white/10">
                   <div className="text-center">
                     <p className="text-4xl font-bold text-white">{myAverageRating.toFixed(1)}</p>
@@ -391,7 +392,6 @@ const TrainerDashboard = () => {
                   </div>
                 </div>
                 
-                {/* Reviews List */}
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                   {(showAllReviews ? myRatings : myRatings.slice(0, 4)).map((review, idx) => (
                     <div key={idx} className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition">
@@ -413,7 +413,7 @@ const TrainerDashboard = () => {
                           )}
                           <p className="text-gray-500 text-xs mt-2 flex items-center gap-1">
                             <CalendarIcon className="w-3 h-3" />
-                            {formatDate(review.createdAt)}
+                            {formatDate(new Date(review.createdAt))}
                           </p>
                         </div>
                       </div>
@@ -438,37 +438,99 @@ const TrainerDashboard = () => {
       {/* Students List Modal */}
       {showStudentsModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowStudentsModal(false)}>
-          <div className="bg-gray-900 rounded-xl max-w-2xl w-full mx-4 border border-white/10 max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gray-900 rounded-xl max-w-2xl w-full mx-4 border border-white/10 max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-white/10 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-white">Your Students</h3>
-                <p className="text-gray-400 text-sm mt-1">Total {studentsList.length} students enrolled in your courses</p>
+                <p className="text-gray-400 text-sm mt-1">Total {studentsList.length} student{studentsList.length !== 1 ? 's' : ''} enrolled in your courses</p>
               </div>
               <button onClick={() => setShowStudentsModal(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
-              {studentsList.length === 0 ? (
-                <div className="text-center py-8">
+            <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)]">
+              {loadingStudents ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-400 ml-3">Loading students...</p>
+                </div>
+              ) : studentsList.length === 0 ? (
+                <div className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-gray-500 mb-4" />
                   <p className="text-gray-400">No students enrolled yet</p>
-                  <p className="text-gray-500 text-sm mt-2">Create courses to get students!</p>
+                  <p className="text-gray-500 text-sm mt-2">Create and promote your courses to get students!</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {studentsList.map((student) => (
-                    <div key={student.id} className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold">
-                          {student.name?.charAt(0).toUpperCase() || 'S'}
+                    <div key={student.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg overflow-hidden shrink-0">
+                          {student.profilePic ? (
+                            <img src={student.profilePic} alt={student.name} className="w-full h-full object-cover" />
+                          ) : (
+                            student.name?.charAt(0).toUpperCase() || 'S'
+                          )}
                         </div>
                         <div className="flex-1">
-                          <p className="text-white font-semibold">{student.name}</p>
-                          <p className="text-gray-400 text-sm">{student.email}</p>
-                          <p className="text-gray-500 text-xs mt-1">Enrolled in: {student.courses?.map(c => c.courseTitle).join(', ')}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-gray-500 text-xs">Enrolled on</p>
-                          <p className="text-gray-400 text-sm">{new Date(student.enrolledAt).toLocaleDateString()}</p>
+                          <div className="flex flex-wrap justify-between items-start gap-2">
+                            <div>
+                              {/* ✅ Student Name - Now coming from backend */}
+                              <p className="text-white font-semibold text-lg">{student.name}</p>
+                              <div className="flex flex-wrap items-center gap-3 mt-1">
+                                {/* ✅ Student Email - Now coming from backend */}
+                                <span className="flex items-center gap-1 text-gray-400 text-xs">
+                                  <EnvelopeIcon className="w-3 h-3" />
+                                  {student.email !== 'Email not available' ? student.email : 'Email not available'}
+                                </span>
+                                {/* ✅ Student Phone - Now coming from backend */}
+                                {student.phone !== 'N/A' && student.phone && (
+                                  <span className="flex items-center gap-1 text-gray-400 text-xs">
+                                    <PhoneIcon className="w-3 h-3" />
+                                    {student.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <BookOpenIcon className="w-4 h-4 text-purple-400" />
+                              <span className="text-white text-sm font-medium">{student.totalCourses} Course{student.totalCourses !== 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Courses List */}
+                          <div className="mt-3 space-y-2">
+                            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Enrolled Courses:</p>
+                            {student.courses.map((course, idx) => (
+                              <div key={idx} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                                <div className="flex flex-wrap justify-between items-start gap-2">
+                                  <div className="flex-1">
+                                    <p className="text-white text-sm font-medium flex items-center gap-2">
+                                      <BookOpenIcon className="w-4 h-4 text-purple-400" />
+                                      {course.courseTitle}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                                      <span className="flex items-center gap-1 text-gray-500 text-xs">
+                                        <CalendarIcon className="w-3 h-3" />
+                                        Enrolled: {formatDate(course.enrolledAt)}
+                                      </span>
+                                      <span className="flex items-center gap-1 text-gray-500 text-xs">
+                                        <CalendarIcon className="w-3 h-3" />
+                                        Valid until: {formatDate(course.validUntil)}
+                                      </span>
+                                      <span className="flex items-center gap-1 text-gray-500 text-xs">
+                                        <ClockIcon className="w-3 h-3" />
+                                        {course.remainingDays || 365} days remaining
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${course.isExpired ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                      {course.isExpired ? 'Expired' : 'Active'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -476,6 +538,18 @@ const TrainerDashboard = () => {
                 </div>
               )}
             </div>
+            {/* Footer */}
+            {studentsList.length > 0 && (
+              <div className="p-4 border-t border-white/10 bg-gray-900/50">
+                <button
+                  onClick={() => navigate('/trainer/courses')}
+                  className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                >
+                  <BookOpenIcon className="w-4 h-4" />
+                  Manage Your Courses →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

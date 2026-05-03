@@ -157,10 +157,10 @@ const MyGyms = () => {
                     </div>
                   )}
                   
-                  {/* ✅ Owner Name Added */}
+                  {/* ✅ Owner Name - Fixed */}
                   <div className="flex items-center gap-1 mt-2 text-xs text-gray-500 mb-2">
                     <UserIcon className="w-3 h-3" />
-                    <span>Owner: {gym.ownerId?.name || 'Unknown'}</span>
+                    <span>Owner: {gym.ownerId?.name || 'Not available'}</span>
                   </div>
                   
                   <div className="flex items-center gap-2 text-gray-500 text-xs mb-4">

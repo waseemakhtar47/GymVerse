@@ -548,13 +548,19 @@ const cancelSentRequest = async (req, res) => {
 const getMyGyms = async (req, res) => {
   try {
     const trainer = await User.findById(req.user.id)
-      .populate('appliedGyms.gymId', 'name address contactNumber timings profilePic facilities description');
+      .populate({
+        path: 'appliedGyms.gymId',
+        populate: {
+          path: 'ownerId',
+          select: 'name email profilePic'
+        }
+      });
     
     if (!trainer) {
       return res.status(404).json({ success: false, message: 'Trainer not found' });
     }
     
-    // ✅ Filter only approved gyms and skip null gymId
+    // Filter only approved gyms and skip null gymId
     const approvedGyms = trainer.appliedGyms
       .filter(app => app.status === 'approved' && app.gymId !== null)
       .map(app => {
@@ -574,6 +580,7 @@ const getMyGyms = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // @desc    Trainer leaves a gym (removes association)
 const leaveGym = async (req, res) => {

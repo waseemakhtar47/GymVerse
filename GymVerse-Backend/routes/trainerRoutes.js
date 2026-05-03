@@ -20,7 +20,7 @@ const {
   addTrainerRating,
   getTrainerRatings,
   deleteTrainerRating,
-    getTrainerAssociatedGyms,
+  getTrainerAssociatedGyms,
 } = require('../controllers/trainerController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -39,6 +39,7 @@ router.get('/my/followers', protect, authorize('trainer'), getMyFollowers);
 router.get('/my/stats', protect, authorize('trainer'), getTrainerStats);
 router.get('/available-gyms', protect, authorize('trainer'), getAvailableGyms);
 router.get('/my-applications', protect, authorize('trainer'), getMyApplications);
+
 router.get('/my-requests', protect, authorize('trainer'), getMyRequests);
 router.put('/requests/:requestId', protect, authorize('trainer'), updateRequestStatus);
 router.post('/apply/:gymId', protect, authorize('trainer', 'owner'), applyToGym);
