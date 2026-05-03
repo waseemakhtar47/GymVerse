@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseService } from '../services/courseService';
+import StarRating from '../components/StarRating';
 import { 
   PlayIcon, 
   PauseIcon, 
@@ -81,7 +82,6 @@ const CoursePlayer = () => {
     }
   };
 
-  // Video controls
   const togglePlay = () => {
     if (!hasAccess && !isOwner) {
       toast.error('You do not have access to this course');
@@ -222,6 +222,8 @@ const CoursePlayer = () => {
   }
 
   const canAccess = hasAccess || isOwner;
+  // ✅ PRIORITY: videoFile > videoUrl
+  const videoSource = course.videoFile || course.videoUrl;
 
   return (
     <div className="min-h-screen bg-black">
@@ -234,7 +236,6 @@ const CoursePlayer = () => {
               Back
             </button>
             
-            {/* ✅ Edit button for trainer/owner */}
             {isOwner && (
               <button
                 onClick={() => navigate(`/trainer/edit-course/${courseId}`)}
@@ -257,7 +258,7 @@ const CoursePlayer = () => {
                 <>
                   <video
                     ref={videoRef}
-                    src={course.videoUrl || course.videoFile}
+                    src={videoSource}
                     className="w-full aspect-video"
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
@@ -268,7 +269,6 @@ const CoursePlayer = () => {
                   
                   {/* Custom Controls */}
                   <div className="bg-gray-900 p-4">
-                    {/* Progress Bar */}
                     <div 
                       className="w-full h-1 bg-gray-700 rounded-full mb-4 cursor-pointer relative group"
                       onClick={handleSeek}
@@ -282,35 +282,19 @@ const CoursePlayer = () => {
                       </div>
                     </div>
                     
-                    {/* Controls Row */}
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={togglePlay}
-                          className="p-2 hover:bg-white/10 rounded-lg transition"
-                        >
+                        <button onClick={togglePlay} className="p-2 hover:bg-white/10 rounded-lg transition">
                           {isPlaying ? <PauseIcon className="w-5 h-5 text-white" /> : <PlayIcon className="w-5 h-5 text-white" />}
                         </button>
-                        
-                        <button
-                          onClick={skipBackward}
-                          className="p-2 hover:bg-white/10 rounded-lg transition"
-                        >
+                        <button onClick={skipBackward} className="p-2 hover:bg-white/10 rounded-lg transition">
                           <BackwardIcon className="w-5 h-5 text-white" />
                         </button>
-                        
-                        <button
-                          onClick={skipForward}
-                          className="p-2 hover:bg-white/10 rounded-lg transition"
-                        >
+                        <button onClick={skipForward} className="p-2 hover:bg-white/10 rounded-lg transition">
                           <ForwardIcon className="w-5 h-5 text-white" />
                         </button>
-                        
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={toggleMute}
-                            className="p-2 hover:bg-white/10 rounded-lg transition"
-                          >
+                          <button onClick={toggleMute} className="p-2 hover:bg-white/10 rounded-lg transition">
                             {isMuted || volume === 0 ? <SpeakerXMarkIcon className="w-5 h-5 text-white" /> : <SpeakerWaveIcon className="w-5 h-5 text-white" />}
                           </button>
                           <input
@@ -323,7 +307,6 @@ const CoursePlayer = () => {
                             className="w-20 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
                           />
                         </div>
-                        
                         <div className="text-gray-400 text-sm ml-2">
                           {formatTime(currentTime)} / {formatTime(duration)}
                         </div>
@@ -331,33 +314,20 @@ const CoursePlayer = () => {
                       
                       <div className="flex items-center gap-2">
                         <div className="relative">
-                          <button
-                            onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                            className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition"
-                          >
+                          <button onClick={() => setShowSpeedMenu(!showSpeedMenu)} className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition">
                             {playbackSpeed}x
                           </button>
                           {showSpeedMenu && (
                             <div className="absolute bottom-full mb-2 right-0 bg-gray-800 rounded-lg shadow-xl border border-white/10 overflow-hidden z-10">
                               {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                                <button
-                                  key={speed}
-                                  onClick={() => changePlaybackSpeed(speed)}
-                                  className={`block w-full px-4 py-2 text-sm hover:bg-white/10 transition text-left ${
-                                    playbackSpeed === speed ? 'text-purple-400 bg-white/5' : 'text-white'
-                                  }`}
-                                >
+                                <button key={speed} onClick={() => changePlaybackSpeed(speed)} className={`block w-full px-4 py-2 text-sm hover:bg-white/10 transition text-left ${playbackSpeed === speed ? 'text-purple-400 bg-white/5' : 'text-white'}`}>
                                   {speed}x
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
-                        
-                        <button
-                          onClick={toggleFullscreen}
-                          className="p-2 hover:bg-white/10 rounded-lg transition"
-                        >
+                        <button onClick={toggleFullscreen} className="p-2 hover:bg-white/10 rounded-lg transition">
                           {isFullscreen ? <ArrowsPointingInIcon className="w-5 h-5 text-white" /> : <ArrowsPointingOutIcon className="w-5 h-5 text-white" />}
                         </button>
                       </div>
@@ -369,10 +339,7 @@ const CoursePlayer = () => {
                   <div className="text-center">
                     <ExclamationTriangleIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
                     <p className="text-gray-400">You don't have access to this course</p>
-                    <button
-                      onClick={() => navigate('/user/courses')}
-                      className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white"
-                    >
+                    <button onClick={() => navigate('/user/courses')} className="mt-4 px-6 py-2 bg-purple-600 rounded-lg text-white">
                       Browse Courses
                     </button>
                   </div>
@@ -396,7 +363,7 @@ const CoursePlayer = () => {
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1">
                   <StarIcon className="w-4 h-4 text-yellow-500" />
-                  <span className="text-gray-300">4.8</span>
+                  <span className="text-gray-300">{course.averageRating ? course.averageRating.toFixed(1) : 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <ClockIcon className="w-4 h-4 text-gray-400" />
@@ -405,6 +372,10 @@ const CoursePlayer = () => {
                 <div className="flex items-center gap-1">
                   <UserIcon className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-300">{course.enrolledUsers?.length || 0} students</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <StarIcon className="w-4 h-4 text-yellow-500" />
+                  <span className="text-gray-300">{course.totalReviews || 0} reviews</span>
                 </div>
               </div>
             </div>
@@ -477,6 +448,13 @@ const CoursePlayer = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-400">Price</span>
                   <span className="text-purple-400 font-bold">₹{course.price}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Rating</span>
+                  <div className="flex items-center gap-1">
+                    <StarRating rating={course.averageRating || 0} size="sm" readonly={true} />
+                    <span className="text-white">({course.totalReviews || 0} reviews)</span>
+                  </div>
                 </div>
               </div>
             </div>

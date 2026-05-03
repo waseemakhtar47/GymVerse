@@ -39,6 +39,7 @@ import Chat from "./pages/Chat";
 import QRVerification from "./pages/owner/QRVerification";
 import CoursePlayer from "./pages/CoursePlayer";
 import EditCourse from "./pages/trainer/EditCourse";
+import MyReviews from "./pages/trainer/MyReviews";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -216,6 +217,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["trainer"]}>
               <MyCourses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trainer/my-reviews"
+          element={
+            <ProtectedRoute allowedRoles={["trainer"]}>
+              <MyReviews />
             </ProtectedRoute>
           }
         />

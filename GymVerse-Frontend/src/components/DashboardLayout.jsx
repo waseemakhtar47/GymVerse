@@ -17,6 +17,7 @@ import {
   BriefcaseIcon,
   EnvelopeIcon,
   QrCodeIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 
 const DashboardLayout = ({ children, title }) => {
@@ -66,6 +67,7 @@ const DashboardLayout = ({ children, title }) => {
         { name: 'My Applications', icon: DocumentTextIcon, path: '/trainer/my-applications' },
         { name: 'Offers', icon: DocumentTextIcon, path: '/trainer/my-requests' },
         { name: 'Followers', icon: UserGroupIcon, path: '/trainer/followers' },
+        { name: 'My Reviews', icon: StarIcon, path: '/trainer/my-reviews' },
       ],
       owner: [
         { name: 'Manage Gyms', icon: BuildingOfficeIcon, path: '/owner/gyms' },

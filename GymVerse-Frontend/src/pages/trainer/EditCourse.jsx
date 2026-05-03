@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { courseService } from '../../services/courseService';
 import { uploadService } from '../../services/uploadService';
-import { VideoCameraIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { VideoCameraIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const EditCourse = () => {
@@ -13,6 +13,7 @@ const EditCourse = () => {
   const [fetching, setFetching] = useState(true);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [removingVideo, setRemovingVideo] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -80,12 +81,29 @@ const EditCourse = () => {
     
     try {
       const res = await uploadService.uploadVideo(formDataFile);
-      setFormData({ ...formData, videoFile: res.data.data.url });
+      setFormData({ ...formData, videoFile: res.data.data.url, videoUrl: '' });
       toast.success('Video uploaded successfully');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to upload video');
     } finally {
       setUploadingVideo(false);
+    }
+  };
+
+  const handleRemoveVideo = async () => {
+    if (!confirm('Are you sure you want to remove the uploaded video? The course will use video URL if available.')) {
+      return;
+    }
+    
+    setRemovingVideo(true);
+    try {
+      await courseService.updateCourse(id, { ...formData, videoFile: '' });
+      setFormData({ ...formData, videoFile: '' });
+      toast.success('Video removed successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove video');
+    } finally {
+      setRemovingVideo(false);
     }
   };
 
@@ -121,6 +139,21 @@ const EditCourse = () => {
       toast.error(error.response?.data?.message || 'Failed to upload thumbnail');
     } finally {
       setUploadingThumbnail(false);
+    }
+  };
+
+  const handleRemoveThumbnail = async () => {
+    if (!confirm('Are you sure you want to remove the thumbnail?')) {
+      return;
+    }
+    
+    try {
+      await courseService.updateCourse(id, { ...formData, thumbnail: '' });
+      setFormData({ ...formData, thumbnail: '' });
+      setThumbnailPreview(null);
+      toast.success('Thumbnail removed successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove thumbnail');
     }
   };
 
@@ -207,11 +240,11 @@ const EditCourse = () => {
               <select
                 value={formData.level}
                 onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
               >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
+                <option value="beginner" className="bg-gray-800 text-white">Beginner</option>
+                <option value="intermediate" className="bg-gray-800 text-white">Intermediate</option>
+                <option value="advanced" className="bg-gray-800 text-white">Advanced</option>
               </select>
             </div>
             
@@ -220,12 +253,12 @@ const EditCourse = () => {
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
               >
-                <option value="fitness">Fitness</option>
-                <option value="yoga">Yoga</option>
-                <option value="nutrition">Nutrition</option>
-                <option value="strength">Strength Training</option>
+                <option value="fitness" className="bg-gray-800 text-white">Fitness</option>
+                <option value="yoga" className="bg-gray-800 text-white">Yoga</option>
+                <option value="nutrition" className="bg-gray-800 text-white">Nutrition</option>
+                <option value="strength" className="bg-gray-800 text-white">Strength Training</option>
               </select>
             </div>
           </div>
@@ -235,17 +268,17 @@ const EditCourse = () => {
             <select
               value={formData.validityDays}
               onChange={(e) => setFormData({ ...formData, validityDays: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
             >
-              <option value={30}>30 days (1 month)</option>
-              <option value={90}>90 days (3 months)</option>
-              <option value={180}>180 days (6 months)</option>
-              <option value={365}>365 days (1 year)</option>
-              <option value={730}>730 days (2 years)</option>
+              <option value={30} className="bg-gray-800 text-white">30 days (1 month)</option>
+              <option value={90} className="bg-gray-800 text-white">90 days (3 months)</option>
+              <option value={180} className="bg-gray-800 text-white">180 days (6 months)</option>
+              <option value={365} className="bg-gray-800 text-white">365 days (1 year)</option>
+              <option value={730} className="bg-gray-800 text-white">730 days (2 years)</option>
             </select>
           </div>
           
-          {/* Thumbnail Upload */}
+          {/* Thumbnail Upload with Remove Option */}
           <div>
             <label className="block text-white mb-2">Course Thumbnail</label>
             <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-purple-500 transition">
@@ -256,43 +289,71 @@ const EditCourse = () => {
               ) : (
                 <PhotoIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
               )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleThumbnailUpload}
-                className="hidden"
-                id="thumbnail-upload"
-              />
-              <label htmlFor="thumbnail-upload" className="cursor-pointer inline-block">
-                <span className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition">
-                  {uploadingThumbnail ? 'Uploading...' : (thumbnailPreview ? 'Change Thumbnail' : 'Upload Thumbnail')}
-                </span>
-              </label>
+              <div className="flex gap-2 justify-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                  id="thumbnail-upload"
+                />
+                <label htmlFor="thumbnail-upload" className="cursor-pointer">
+                  <span className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition">
+                    {uploadingThumbnail ? 'Uploading...' : (thumbnailPreview ? 'Change Thumbnail' : 'Upload Thumbnail')}
+                  </span>
+                </label>
+                {thumbnailPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveThumbnail}
+                    className="px-4 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center gap-1"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                    Remove
+                  </button>
+                )}
+              </div>
               <p className="text-gray-500 text-xs mt-2">JPG, PNG, GIF (Max 5MB)</p>
             </div>
           </div>
           
-          {/* Video Upload */}
+          {/* Video Upload with Remove Option */}
           <div>
             <label className="block text-white mb-2">Course Video</label>
             <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-purple-500 transition">
               <VideoCameraIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleVideoUpload}
-                className="hidden"
-                id="video-upload"
-              />
-              <label htmlFor="video-upload" className="cursor-pointer inline-block">
-                <span className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition">
-                  {uploadingVideo ? 'Uploading...' : 'Upload New Video'}
-                </span>
-              </label>
+              <div className="flex gap-2 justify-center">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                  id="video-upload"
+                />
+                <label htmlFor="video-upload" className="cursor-pointer">
+                  <span className="px-4 py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition">
+                    {uploadingVideo ? 'Uploading...' : 'Upload New Video'}
+                  </span>
+                </label>
+                {formData.videoFile && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveVideo}
+                    disabled={removingVideo}
+                    className="px-4 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center gap-1"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                    {removingVideo ? 'Removing...' : 'Remove Video'}
+                  </button>
+                )}
+              </div>
               <p className="text-gray-500 text-xs mt-2">MP4, MOV, AVI (Max 100MB)</p>
             </div>
             {formData.videoFile && (
-              <p className="text-green-400 text-sm mt-2">✓ Video file present</p>
+              <p className="text-green-400 text-sm mt-2">✓ Video file uploaded</p>
+            )}
+            {formData.videoUrl && !formData.videoFile && (
+              <p className="text-blue-400 text-sm mt-2">✓ Video URL configured (will be used if no video file)</p>
             )}
           </div>
           
@@ -306,6 +367,9 @@ const EditCourse = () => {
               placeholder="https://www.youtube.com/watch?v=..."
               className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
+            <p className="text-gray-500 text-xs mt-1">
+              {formData.videoFile ? 'Video file will be used as priority. URL will be used only if no video file.' : 'URL will be used as video source'}
+            </p>
           </div>
           
           <button

@@ -72,7 +72,6 @@ const CreateCourse = () => {
     const formDataFile = new FormData();
     formDataFile.append('thumbnail', file);
     
-    // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setThumbnailPreview(reader.result);
@@ -163,11 +162,11 @@ const CreateCourse = () => {
               <select
                 value={formData.level}
                 onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
               >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
+                <option value="beginner" className="bg-gray-800 text-white">Beginner</option>
+                <option value="intermediate" className="bg-gray-800 text-white">Intermediate</option>
+                <option value="advanced" className="bg-gray-800 text-white">Advanced</option>
               </select>
             </div>
             
@@ -176,12 +175,12 @@ const CreateCourse = () => {
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
               >
-                <option value="fitness">Fitness</option>
-                <option value="yoga">Yoga</option>
-                <option value="nutrition">Nutrition</option>
-                <option value="strength">Strength Training</option>
+                <option value="fitness" className="bg-gray-800 text-white">Fitness</option>
+                <option value="yoga" className="bg-gray-800 text-white">Yoga</option>
+                <option value="nutrition" className="bg-gray-800 text-white">Nutrition</option>
+                <option value="strength" className="bg-gray-800 text-white">Strength Training</option>
               </select>
             </div>
           </div>
@@ -192,13 +191,13 @@ const CreateCourse = () => {
             <select
               value={formData.validityDays}
               onChange={(e) => setFormData({ ...formData, validityDays: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 [&>option]:bg-gray-800 [&>option]:text-white"
             >
-              <option value={30}>30 days (1 month)</option>
-              <option value={90}>90 days (3 months)</option>
-              <option value={180}>180 days (6 months)</option>
-              <option value={365}>365 days (1 year)</option>
-              <option value={730}>730 days (2 years)</option>
+              <option value={30} className="bg-gray-800 text-white">30 days (1 month)</option>
+              <option value={90} className="bg-gray-800 text-white">90 days (3 months)</option>
+              <option value={180} className="bg-gray-800 text-white">180 days (6 months)</option>
+              <option value={365} className="bg-gray-800 text-white">365 days (1 year)</option>
+              <option value={730} className="bg-gray-800 text-white">730 days (2 years)</option>
             </select>
           </div>
           
@@ -266,6 +265,7 @@ const CreateCourse = () => {
               placeholder="https://www.youtube.com/watch?v=..."
               className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
+            <p className="text-gray-500 text-xs mt-1">Uploaded video file will be used as priority. URL will be used only if no video file.</p>
           </div>
           
           <button
