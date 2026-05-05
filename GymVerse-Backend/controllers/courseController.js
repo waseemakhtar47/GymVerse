@@ -116,9 +116,6 @@ const enrollCourse = async (req, res) => {
     
     const userId = req.user.id;
     
-    console.log('=== ENROLL COURSE DEBUG ===');
-    console.log('Course ID:', req.params.id);
-    console.log('User ID:', userId);
     
     // ✅ PEHLE CANCELLED CHECK KARO (ACTIVE SE PEHLE)
     const cancelledEnrollmentIndex = course.enrolledUsers.findIndex(
@@ -126,7 +123,6 @@ const enrollCourse = async (req, res) => {
     );
     
     if (cancelledEnrollmentIndex !== -1) {
-      console.log('Cancelled enrollment found - reactivating');
       
       // Reactivate cancelled enrollment
       course.enrolledUsers[cancelledEnrollmentIndex].status = 'active';
@@ -466,10 +462,7 @@ const cancelEnrollment = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
     
-    console.log('=== CANCEL ENROLLMENT DEBUG ===');
-    console.log('Course ID:', id);
-    console.log('User ID:', userId);
-    
+  
     const course = await Course.findById(id);
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found' });

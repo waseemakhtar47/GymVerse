@@ -349,11 +349,17 @@ const getMyApplications = async (req, res) => {
 const getMyRequests = async (req, res) => {
   try {
     const trainer = await User.findById(req.user.id)
-      .populate('appliedGyms.gymId', 'name address contactNumber ownerId')
-      .populate('appliedGyms.gymId.ownerId', 'name email');
+      .populate({
+        path: 'appliedGyms.gymId',
+        populate: {
+          path: 'ownerId',
+          select: 'name email phone'
+        }
+      });
     
-    // ✅ Only show owner-initiated (source = 'owner')
+    // Only show owner-initiated (source = 'owner')
     const requests = (trainer.appliedGyms || []).filter(a => a.source === 'owner');
+    
     res.json({ success: true, data: requests });
   } catch (error) {
     console.error('getMyRequests error:', error);

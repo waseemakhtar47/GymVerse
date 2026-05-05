@@ -8,7 +8,7 @@ import {
   QrCodeIcon,
   CheckCircleIcon,
   XCircleIcon,
-  CurrencyDollarIcon,
+  CurrencyRupeeIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -125,9 +125,9 @@ const GymMemberships = () => {
               <p className="text-gray-400 text-sm">Inactive</p>
             </div>
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <CurrencyDollarIcon className="w-8 h-8 text-yellow-400 mb-2" />
-              <p className="text-2xl font-bold text-white">${stats.revenue}</p>
-              <p className="text-gray-400 text-sm">Revenue</p>
+              <CurrencyRupeeIcon className="w-8 h-8 text-yellow-400 mb-2" />
+              <p className="text-2xl font-bold text-white">₹{stats.revenue}</p>
+              <p className="text-gray-400 text-sm">Current Revenue</p>
             </div>
           </div>
         )}
@@ -209,7 +209,7 @@ const GymMemberships = () => {
                       {new Date(m.endDate).toLocaleDateString()}
                     </td>
                     <td className="p-4">{getStatusBadge(m.status)}</td>
-                    <td className="p-4 text-white">${m.paymentAmount}</td>
+                    <td className="p-4 text-white">₹{m.paymentAmount}</td>
                   </tr>
                 ))}
                 {memberships.length === 0 && (

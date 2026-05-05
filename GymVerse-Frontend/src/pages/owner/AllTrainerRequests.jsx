@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { gymService } from '../../services/gymService';
-import { UserIcon, CheckIcon, XMarkIcon, BuildingOfficeIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { UserIcon, CheckIcon, XMarkIcon, BuildingOfficeIcon, ClockIcon, EyeIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const AllTrainerRequests = () => {
@@ -18,12 +18,9 @@ const AllTrainerRequests = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ✅ Pehle owner ke apne gyms fetch karo
       const gymsRes = await gymService.getOwnerGyms();
       const ownerGyms = gymsRes.data.data || [];
       
-      
-      // ✅ Sirf owner ke apne gyms ke applications fetch karo
       const requests = [];
       for (const gym of ownerGyms) {
         try {
@@ -37,8 +34,6 @@ const AllTrainerRequests = () => {
             });
           });
         } catch (error) {
-          console.error(`Failed to fetch apps for gym ${gym._id}:`, error);
-          // Agar 403 aata hai toh skip karo (yeh gym owner ki nahi hai)
           if (error.response?.status === 403) {
             console.log(`Skipping gym ${gym._id} - not authorized`);
           }
@@ -58,12 +53,17 @@ const AllTrainerRequests = () => {
     try {
       await gymService.updateApplicationStatus(gymId, trainerId, status);
       toast.success(status === 'approved' ? 'Trainer approved' : 'Application rejected');
-      // Refresh data
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update');
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleCardClick = (trainerId) => {
+    if (trainerId) {
+      navigate(`/trainer-profile/${trainerId}`);
     }
   };
 
@@ -103,14 +103,21 @@ const AllTrainerRequests = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {allRequests.map((request) => (
-              <div key={request._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-yellow-500/30 hover:scale-[1.02] transition">
+              <div 
+                key={request._id} 
+                className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-yellow-500/30 hover:scale-[1.02] transition cursor-pointer group"
+                onClick={() => handleCardClick(request.trainerId?._id)}
+              >
                 {/* Gym Header */}
                 <div className="h-24 bg-linear-to-r from-purple-600 to-blue-600 p-4">
                   <div className="flex items-center gap-3">
                     <BuildingOfficeIcon className="w-8 h-8 text-white" />
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-white font-bold text-lg">{request.gymName}</h3>
                       <p className="text-white/80 text-sm">Application received</p>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition">
+                      <EyeIcon className="w-5 h-5 text-white" />
                     </div>
                   </div>
                 </div>
@@ -126,8 +133,8 @@ const AllTrainerRequests = () => {
                       )}
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold text-lg">{request.trainerId?.name}</h4>
-                      <p className="text-gray-400 text-sm">{request.trainerId?.email}</p>
+                      <h4 className="text-white font-semibold text-lg">{request.trainerId?.name || 'Unknown'}</h4>
+                      <p className="text-gray-400 text-sm">{request.trainerId?.email || 'Email not available'}</p>
                     </div>
                   </div>
                   
@@ -135,12 +142,16 @@ const AllTrainerRequests = () => {
                     <p className="text-gray-400 text-sm mb-2">📞 {request.trainerId.phone}</p>
                   )}
                   
+                  {request.trainerId?.specialty && (
+                    <p className="text-purple-400 text-xs mb-2">Specialty: {request.trainerId.specialty}</p>
+                  )}
+                  
                   <div className="flex items-center gap-2 text-gray-500 text-xs mb-4">
                     <ClockIcon className="w-3 h-3" />
                     <span>Applied on: {new Date(request.joinedAt).toLocaleDateString()}</span>
                   </div>
                   
-                  <div className="flex gap-3">
+                  <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleUpdate(request.gymId, request.trainerId._id, 'approved')}
                       disabled={processing === `${request.gymId}-${request.trainerId._id}`}

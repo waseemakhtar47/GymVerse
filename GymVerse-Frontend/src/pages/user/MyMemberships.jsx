@@ -26,10 +26,17 @@ const MyMemberships = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('active');
+  const [preSelectedGymId, setPreSelectedGymId] = useState(null);
 
   useEffect(() => {
     fetchData();
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (activeTab !== 'buy') {
+      setPreSelectedGymId(null);
+    }
+  }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -59,12 +66,10 @@ const MyMemberships = () => {
     }
   };
 
-  // ✅ Clean all cancelled memberships
   const handleCleanCancelled = async () => {
     if (!confirm('Remove all cancelled memberships from history? This action cannot be undone.')) return;
     
     try {
-      // Get all cancelled memberships
       const cancelledMemberships = memberships.filter(m => m.status === 'cancelled');
       
       if (cancelledMemberships.length === 0) {
@@ -90,6 +95,11 @@ const MyMemberships = () => {
     }
   };
 
+  const handleBuyNewFromCancelled = (gymId) => {
+    setPreSelectedGymId(gymId);
+    setActiveTab('buy');
+  };
+
   const getStatusColor = (status) => {
     switch(status) {
       case 'active': return 'text-green-400 bg-green-500/20';
@@ -99,7 +109,6 @@ const MyMemberships = () => {
     }
   };
 
-  // Get plan details from gym pricing
   const getPlanDetails = (plan, gym = null) => {
     let price = 49;
     let amount = 49;
@@ -367,7 +376,7 @@ const MyMemberships = () => {
           </div>
         )}
 
-        {/* Cancelled Memberships Tab - With Clean Button */}
+        {/* Cancelled Memberships Tab - Redirects to Buy New tab */}
         {activeTab === 'cancelled' && (
           <div>
             {cancelledMemberships.length === 0 ? (
@@ -379,7 +388,8 @@ const MyMemberships = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cancelledMemberships.map((m) => {
-                  const plan = getPlanDetails(m.plan, m.gymId);
+                  const planName = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+                  
                   return (
                     <div key={m._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-gray-500/30 opacity-80">
                       <div className="h-20 bg-gray-800 p-4">
@@ -393,7 +403,7 @@ const MyMemberships = () => {
                           </div>
                           <div>
                             <h3 className="text-white font-bold">{m.gymId?.name || 'Gym'}</h3>
-                            <p className="text-gray-400 text-sm">{plan.name} Plan</p>
+                            <p className="text-gray-400 text-sm">{planName[m.plan]} Plan</p>
                           </div>
                         </div>
                       </div>
@@ -407,14 +417,10 @@ const MyMemberships = () => {
                           <span className="text-gray-400 text-sm">{new Date(m.endDate).toLocaleDateString()}</span>
                         </div>
                         <button
-                          onClick={() => {
-                            setSelectedGym(m.gymId);
-                            setSelectedPlan(m.plan);
-                            setShowBuyModal(true);
-                          }}
-                          className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700"
+                          onClick={() => handleBuyNewFromCancelled(m.gymId._id)}
+                          className="w-full py-2 bg-purple-600 rounded-lg text-white text-sm hover:bg-purple-700 transition"
                         >
-                          Buy New - {plan.price}
+                          Buy New Membership
                         </button>
                       </div>
                     </div>
@@ -425,7 +431,7 @@ const MyMemberships = () => {
           </div>
         )}
 
-        {/* Buy New Tab */}
+        {/* Buy New Tab - With auto-select gym from cancelled tab */}
         {activeTab === 'buy' && (
           <div>
             <h3 className="text-white font-semibold mb-4">Choose a Gym</h3>
@@ -435,73 +441,102 @@ const MyMemberships = () => {
                 <p className="text-gray-400">No gyms available at the moment.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {gyms.map((gym) => {
-                  const hasActive = activeMemberships.some(m => m.gymId?._id === gym._id);
-                  const monthlyPrice = gym.pricing?.monthly || 49;
-                  
-                  return (
-                    <div
-                      key={gym._id}
-                      onClick={() => {
-                        if (!hasActive) {
-                          setSelectedGym(gym);
-                          setShowBuyModal(true);
-                        } else {
-                          toast.error('You already have an active membership for this gym');
-                        }
-                      }}
-                      className={`bg-white/5 backdrop-blur-lg rounded-xl p-4 border cursor-pointer transition ${
-                        hasActive 
-                          ? 'border-green-500/50 opacity-60 cursor-not-allowed' 
-                          : 'border-white/10 hover:border-purple-500'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
-                          {gym.profilePic ? (
-                            <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <BuildingOfficeIcon className="w-6 h-6 text-white" />
+              <>
+                {/* Show auto-selected gym message */}
+                {preSelectedGymId && (
+                  <div className="mb-4 p-3 bg-purple-500/20 rounded-lg border border-purple-500">
+                    <p className="text-purple-400 text-sm flex items-center gap-2">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Gym pre-selected for you. Click the highlighted card below to purchase membership.
+                    </p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {gyms.map((gym) => {
+                    const hasActive = activeMemberships.some(m => m.gymId?._id === gym._id);
+                    const monthlyPrice = gym.pricing?.monthly || 49;
+                    const isPreSelected = preSelectedGymId === gym._id;
+                    
+                    return (
+                      <div
+                        key={gym._id}
+                        onClick={() => {
+                          if (!hasActive) {
+                            setSelectedGym(gym);
+                            setShowBuyModal(true);
+                            setPreSelectedGymId(null);
+                          } else {
+                            toast.error('You already have an active membership for this gym');
+                          }
+                        }}
+                        className={`bg-white/5 backdrop-blur-lg rounded-xl p-4 border cursor-pointer transition ${
+                          hasActive 
+                            ? 'border-green-500/50 opacity-60 cursor-not-allowed' 
+                            : isPreSelected
+                            ? 'border-purple-500 bg-purple-500/20 scale-105 shadow-lg'
+                            : 'border-white/10 hover:border-purple-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-full bg-linear-to-r from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center">
+                            {gym.profilePic ? (
+                              <img src={gym.profilePic} alt={gym.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <BuildingOfficeIcon className="w-6 h-6 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-white font-semibold">{gym.name}</h4>
+                            <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
+                          </div>
+                          {isPreSelected && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-500 text-white">
+                              Selected
+                            </span>
                           )}
                         </div>
-                        <div className="flex-1">
-                          <h4 className="text-white font-semibold">{gym.name}</h4>
-                          <p className="text-gray-400 text-xs">{gym.address?.substring(0, 60)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">Monthly</span>
-                          <span className="text-purple-400 font-bold">₹{monthlyPrice}</span>
-                        </div>
-                        {gym.pricing?.quarterly && (
+                        
+                        <div className="mt-2 space-y-1">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-500">Quarterly</span>
-                            <span className="text-purple-400">₹{gym.pricing.quarterly}</span>
+                            <span className="text-gray-500">Monthly</span>
+                            <span className="text-purple-400 font-bold">₹{monthlyPrice}</span>
+                          </div>
+                          {gym.pricing?.quarterly && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-500">Quarterly</span>
+                              <span className="text-purple-400">₹{gym.pricing.quarterly}</span>
+                            </div>
+                          )}
+                          {gym.pricing?.yearly && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-500">Yearly</span>
+                              <span className="text-purple-400">₹{gym.pricing.yearly}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {hasActive && (
+                          <div className="mt-3 text-center">
+                            <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center gap-1">
+                              <CheckCircleIcon className="w-3 h-3" />
+                              Already Purchased
+                            </span>
                           </div>
                         )}
-                        {gym.pricing?.yearly && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-500">Yearly</span>
-                            <span className="text-purple-400">₹{gym.pricing.yearly}</span>
+                        
+                        {isPreSelected && !hasActive && (
+                          <div className="mt-3 text-center">
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
+                              Click to continue
+                            </span>
                           </div>
                         )}
                       </div>
-                      
-                      {hasActive && (
-                        <div className="mt-3 text-center">
-                          <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center gap-1">
-                            <CheckCircleIcon className="w-3 h-3" />
-                            Already Purchased
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}

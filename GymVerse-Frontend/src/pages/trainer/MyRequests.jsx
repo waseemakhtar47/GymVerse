@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { trainerService } from '../../services/trainerService';
 import { 
@@ -8,11 +9,14 @@ import {
   ClockIcon,
   EnvelopeIcon,
   PhoneIcon,
-  MapPinIcon
+  MapPinIcon,
+  UserIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const MyRequests = () => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
@@ -25,7 +29,6 @@ const MyRequests = () => {
     setLoading(true);
     try {
       const res = await trainerService.getMyRequests();
-      // ✅ Sirf pending requests dikhao
       const pendingRequests = (res.data.data || []).filter(r => r.status === 'pending');
       setRequests(pendingRequests);
     } catch (error) {
@@ -41,12 +44,17 @@ const MyRequests = () => {
     try {
       const res = await trainerService.updateRequestStatus(requestId, status);
       toast.success(res.data.message);
-      // ✅ Remove card from list immediately
       setRequests(prev => prev.filter(r => r._id !== requestId));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update request');
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleCardClick = (gymId) => {
+    if (gymId) {
+      navigate(`/gym-details/${gymId}`);
     }
   };
 
@@ -79,61 +87,77 @@ const MyRequests = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {requests.map((request) => (
-              <div key={request._id} className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-yellow-500/30 hover:scale-[1.02] transition">
-                <div className="h-24 bg-linear-to-r from-yellow-600 to-orange-600 p-4">
-                  <div className="flex items-center gap-3">
-                    <BuildingOfficeIcon className="w-8 h-8 text-white" />
-                    <div>
-                      <h3 className="text-white font-bold text-lg">{request.gymId?.name}</h3>
-                      <p className="text-white/80 text-sm">From: {request.gymId?.ownerId?.name}</p>
+            {requests.map((request) => {
+              const gym = request.gymId;
+              const owner = gym?.ownerId;
+              
+              return (
+                <div 
+                  key={request._id} 
+                  className="bg-white/5 backdrop-blur-lg rounded-xl overflow-hidden border border-yellow-500/30 hover:scale-[1.02] transition cursor-pointer group"
+                  onClick={() => handleCardClick(gym?._id)}
+                >
+                  {/* Gym Header */}
+                  <div className="h-24 bg-linear-to-r from-yellow-600 to-orange-600 p-4">
+                    <div className="flex items-center gap-3">
+                      <BuildingOfficeIcon className="w-8 h-8 text-white" />
+                      <div>
+                        <h3 className="text-white font-bold text-lg">{gym?.name || 'Unknown Gym'}</h3>
+                        <p className="text-white/80 text-sm">From: {owner?.name || 'Loading...'}</p>
+                      </div>
+                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition">
+                        <EyeIcon className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Gym Details */}
+                  <div className="p-4">
+                    {gym?.address && (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                        <MapPinIcon className="w-4 h-4" />
+                        <span>{gym.address}</span>
+                      </div>
+                    )}
+                    {gym?.contactNumber && (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                        <PhoneIcon className="w-4 h-4" />
+                        <span>{gym.contactNumber}</span>
+                      </div>
+                    )}
+                    {owner?.email && (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
+                        <EnvelopeIcon className="w-4 h-4" />
+                        <span>{owner.email}</span>
+                      </div>
+                    )}
+                    
+                    <p className="text-gray-400 text-xs mb-4">
+                      Received on: {new Date(request.appliedAt).toLocaleDateString()}
+                    </p>
+                    
+                    <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleUpdateStatus(request._id, 'approved')}
+                        disabled={processing === request._id}
+                        className="flex-1 py-2 bg-green-600 rounded-lg text-white text-sm hover:bg-green-700 transition flex items-center justify-center gap-1"
+                      >
+                        <CheckCircleIcon className="w-4 h-4" />
+                        {processing === request._id ? 'Processing...' : 'Accept Offer'}
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(request._id, 'rejected')}
+                        disabled={processing === request._id}
+                        className="flex-1 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center justify-center gap-1"
+                      >
+                        <XCircleIcon className="w-4 h-4" />
+                        Decline
+                      </button>
                     </div>
                   </div>
                 </div>
-                
-                <div className="p-4">
-                  {request.gymId?.address && (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                      <MapPinIcon className="w-4 h-4" />
-                      <span>{request.gymId.address}</span>
-                    </div>
-                  )}
-                  {request.gymId?.contactNumber && (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                      <PhoneIcon className="w-4 h-4" />
-                      <span>{request.gymId.contactNumber}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
-                    <EnvelopeIcon className="w-4 h-4" />
-                    <span>{request.gymId?.ownerId?.email}</span>
-                  </div>
-                  
-                  <p className="text-gray-400 text-xs mb-4">
-                    Received on: {new Date(request.appliedAt).toLocaleDateString()}
-                  </p>
-                  
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleUpdateStatus(request._id, 'approved')}
-                      disabled={processing === request._id}
-                      className="flex-1 py-2 bg-green-600 rounded-lg text-white text-sm hover:bg-green-700 transition flex items-center justify-center gap-1"
-                    >
-                      <CheckCircleIcon className="w-4 h-4" />
-                      {processing === request._id ? 'Processing...' : 'Accept Offer'}
-                    </button>
-                    <button
-                      onClick={() => handleUpdateStatus(request._id, 'rejected')}
-                      disabled={processing === request._id}
-                      className="flex-1 py-2 bg-red-600/20 rounded-lg text-red-400 text-sm hover:bg-red-600/30 transition flex items-center justify-center gap-1"
-                    >
-                      <XCircleIcon className="w-4 h-4" />
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
